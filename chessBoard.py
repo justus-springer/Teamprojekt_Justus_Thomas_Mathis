@@ -32,16 +32,24 @@ class ChessBoard(QWidget):
 
     def drawRectangles(self, event, qp):
 
-        col = QColor(0, 0, 0)
-        col.setNamedColor('#d4d4d4')
-        qp.setPen(col)
-
-        qp.setBrush(QColor(200, 0, 0))
+        # this is for outlines
+        qp.setPen(BLACK_COLOR)
 
         for y in range(8):
             for x in range(8):
-                qp.drawRect(PADDING + x * TILE_WIDTH, PADDING + y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+                qp.setBrush(self.getColorForPosition(x, y))
+                qp.drawRect(PADDING + x * TILE_WIDTH,
+                            PADDING + y * TILE_HEIGHT,
+                            TILE_WIDTH,
+                            TILE_HEIGHT)
 
+
+
+    def getColorForPosition(self, x, y):
+        if (x+y) % 2 == 0:
+            return WHITE_COLOR
+        else:
+            return BLACK_COLOR
 
 if __name__ == '__main__':
 
