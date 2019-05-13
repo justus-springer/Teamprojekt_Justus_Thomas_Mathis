@@ -1,6 +1,6 @@
 import sys
-from PyQt5.QtWidgets import QWidget, QApplication
-from PyQt5.QtGui import QPainter, QColor, QFont, QIcon
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel
+from PyQt5.QtGui import QPainter, QColor, QFont, QIcon, QPixmap
 from PyQt5.QtCore import Qt
 import math
 
@@ -28,7 +28,19 @@ class ChessBoard(QWidget):
 
         self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, START_WINDOW_WIDTH, START_WINDOW_HEIGHT)
         self.setWindowTitle('ChessBoard')
+
+        self.queen = Queen(self)
+
         self.show()
+
+    def mouseMoveEvent(self, e):
+        self.queen.moveCenter(e.x(), e.y())
+
+    def mouseReleaseEvent(self, e):
+        # Move to nearest whole tile
+        newX = e.x() - (e.x() % TILE_WIDTH)
+        newY = e.y() - (e.y() % TILE_HEIGHT)
+        self.queen.move(newX, newY)
 
     def paintEvent(self, event):
 
@@ -52,6 +64,18 @@ class ChessBoard(QWidget):
             return WHITE_COLOR
         else:
             return BLACK_COLOR
+
+class Queen(QLabel):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self.setPixmap(QPixmap('queen.png'))
+
+    def moveCenter(self, x, y):
+        newX = x - self.width() / 2
+        newY = y - self.height() / 2
+        self.move(newX, newY)
 
 
 if __name__ == '__main__':
