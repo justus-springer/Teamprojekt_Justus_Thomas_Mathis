@@ -29,28 +29,18 @@ class ChessBoard(QWidget):
         self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, START_WINDOW_WIDTH, START_WINDOW_HEIGHT)
         self.setWindowTitle('ChessBoard')
 
-        # Get myself a queen
-        self.queen = QLabel(self)
-        self.queen.setPixmap(QPixmap('queen.png'))
-        # Remain hidden until the first mouse click
-        self.queen.hide()
+        self.queen = Queen(self)
 
         self.show()
 
-    def mousePressEvent(self, e):
+    def mouseMoveEvent(self, e):
+        self.queen.moveCenter(e.x(), e.y())
 
-        # Show youself
-        self.queen.show()
-
-        # Fetch the x and y coordinate of the mouse click
-        x = e.x()
-        y = e.y()
-
-        # Compute the row and column number of the mouse click
-        column = (x - (x % TILE_WIDTH)) / TILE_WIDTH
-        row = (y - (y % TILE_HEIGHT)) / TILE_HEIGHT
-
-        self.queen.move(column * TILE_WIDTH, row * TILE_HEIGHT)
+    def mouseReleaseEvent(self, e):
+        # Move to nearest whole tile
+        newX = e.x() - (e.x() % TILE_WIDTH)
+        newY = e.y() - (e.y() % TILE_HEIGHT)
+        self.queen.move(newX, newY)
 
     def paintEvent(self, event):
 
@@ -74,6 +64,18 @@ class ChessBoard(QWidget):
             return WHITE_COLOR
         else:
             return BLACK_COLOR
+
+class Queen(QLabel):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self.setPixmap(QPixmap('queen.png'))
+
+    def moveCenter(self, x, y):
+        newX = x - self.width() / 2
+        newY = y - self.height() / 2
+        self.move(newX, newY)
 
 
 if __name__ == '__main__':
