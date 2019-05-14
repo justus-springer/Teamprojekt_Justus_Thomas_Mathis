@@ -3,4 +3,5 @@
 ---
 ## Blogeinträge:
 
-- *Woche 1*: [Schachbrett zeichnen](/chess.md)
+- *Woche 1*: [Schachbrett zeichnen](/week1/index.md)
+- *Woche 2*: Coming soon
