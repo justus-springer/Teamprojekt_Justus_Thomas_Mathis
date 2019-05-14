@@ -36,7 +36,7 @@ def drawRectangles(self, event, qp):
 
 Dieser Code zeichnet schonmal ein Muster von 8x8 Rechtecken:
 
-![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/Template.png)
+![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/week1/Template.png)
 
 Das Problem was wir lösen mussten: Wie macht man es, dass die Farben der Rechtecke sich abwechseln, wie bei einem Schachbrett? Erste schnelle Lösung:
 
@@ -74,7 +74,7 @@ def drawBoard(self, qp):
 
 Hier wird in jedem Schleifendurchgang die Farbe des Painters gewechselt. Das produziert das gewünschte Schachbrettmuster:
 
-![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/Schachbrett.PNG)
+![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/week1/Schachbrett.PNG)
 
 Dieser Code ist noch nicht optimal lesbar und nicht effizient. Am Ende entschieden wir uns für diese lesbarere Variante:
 
