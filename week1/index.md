@@ -1,6 +1,6 @@
 # Woche 1: Schachbrett
 
-### [<- Zurück](/index.md) zur Projektübersicht
+### [<- Zurück](/../index.md) zur Projektübersicht
 ---
 
 ## Schachbrettmuster
@@ -78,7 +78,7 @@ Hier wird in jedem Schleifendurchgang die Farbe des Painters gewechselt. Das pro
 
 Dieser Code ist noch nicht optimal lesbar und nicht effizient. Am Ende entschieden wir uns für diese lesbarere Variante:
 
-```Python
+```python
 def drawChessboard(self, event, qp):
 
     for column in range(8):
@@ -96,6 +96,38 @@ def getColorForPosition(self, x, y):
         return BLACK_COLOR
 ```
 
-In dieser Version gibt es eine Hilfsfunktion getColorForPosition(x, y) die für zwei Koordinaten x und y entscheidet, ob das Feld schwarz oder weiß werden soll.
+In dieser Version gibt es eine Hilfsfunktion *getColorForPosition(x, y)*  die für zwei Koordinaten x und y entscheidet, ob das Feld schwarz oder weiß werden soll.
 
 ## Königin
+
+Als zusätzliches Feature haben wir noch eine Königin eingebaut, die sich auf dem Schachfeld bewegen kann:
+
+```python
+class Queen(QLabel):
+
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self.setPixmap(QPixmap('queen.png'))
+
+    def moveCenter(self, x, y):
+        newX = x - self.width() / 2
+        newY = y - self.height() / 2
+        self.move(newX, newY)
+```
+
+Zu Beginn wird ein Objekt dieser Klasse initialisiert. In der Hauptklasse müssen dann noch die Methoden implementiert werden, die mit Mausbewegungen und Klicks umgehen:
+
+```python
+def mouseMoveEvent(self, e):
+        self.queen.moveCenter(e.x(), e.y())
+
+def mouseReleaseEvent(self, e):
+        # Move to nearest whole tile
+        newX = e.x() - (e.x() % TILE_WIDTH)
+        newY = e.y() - (e.y() % TILE_HEIGHT)
+        self.queen.move(newX, newY)
+```
+
+*mouseMoveEvent*  wird immer dann aufgerufen, wenn die Maus sich bewegt und die Maustaste gedrückt ist. Dadurch folgt die Königin der Maus und kann sich per "Drag and Drop" bewegen.
+*mouseReleaseEvent*  wird aufgerufen wenn der Mauszeiger losgelassen wird. Dann wird die Königin auf das Schachfeld gesetzt, was dem Mauszeiger am nächsten ist.
