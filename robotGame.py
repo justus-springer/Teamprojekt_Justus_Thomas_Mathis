@@ -5,6 +5,8 @@ from PyQt5.QtCore import Qt, QBasicTimer
 import numpy as np
 import math
 
+from levelLoader import LevelLoader
+
 
 #Window options
 
@@ -29,9 +31,9 @@ class RobotGame(QWidget):
 
     def __init__(self):
         super().__init__()
-        #Initilalizie Plaground 100x100 matrix with zeros
-        self.matrix = np.zeros((NUMBER_OF_TILES,NUMBER_OF_TILES))
-        self.initializeWalls()
+
+        # Load level data from file
+        self.levelMatrix = LevelLoader.loadLevel('level1.txt')
         self.initUI()
 
         # Initialize timer
@@ -56,24 +58,13 @@ class RobotGame(QWidget):
         self.myRobot.draw(qp)
         qp.end()
 
-    def initializeWalls(self):
-
-        #initialize east and west walls
-        for row in range(NUMBER_OF_TILES):
-            self.matrix[row,0] = 1
-            self.matrix[row,NUMBER_OF_TILES-1] = 1
-        #initialize south and north walls
-        for column in range(NUMBER_OF_TILES):
-            self.matrix[0,column] = 1
-            self.matrix[NUMBER_OF_TILES-1,column] = 1
-
     def drawTiles(self, event, qp):
 
-        for column in range(NUMBER_OF_TILES):
-            for row in range(NUMBER_OF_TILES):
-                if(self.matrix[column,row] == 1):
+        for row in range(NUMBER_OF_TILES):
+            for column in range(NUMBER_OF_TILES):
+                if(self.levelMatrix[row][column] == LevelLoader.WALL_TILE):
                     qp.setBrush(WALL_TILE_COLOR)
-                else:
+                elif(self.levelMatrix[row][column] == LevelLoader.FLOOR_TILE):
                     qp.setBrush(FLOOR_TILE_COLOR)
 
                 qp.drawRect(column*TILE_SIZE,
