@@ -62,9 +62,9 @@ class RobotGame(QWidget):
 
         for row in range(NUMBER_OF_TILES):
             for column in range(NUMBER_OF_TILES):
-                if(self.levelMatrix[row][column] == 1):
+                if(self.levelMatrix[row][column] == LevelLoader.WALL_TILE):
                     qp.setBrush(WALL_TILE_COLOR)
-                else:
+                elif(self.levelMatrix[row][column] == LevelLoader.FLOOR_TILE):
                     qp.setBrush(FLOOR_TILE_COLOR)
 
                 qp.drawRect(column*TILE_SIZE,
