@@ -4,6 +4,7 @@ from PyQt5.QtGui import QPainter, QColor
 from PyQt5.QtCore import Qt, QBasicTimer
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 
 from levelLoader import LevelLoader
 
@@ -81,21 +82,37 @@ class RobotGame(QWidget):
 class BaseRobot:
 
     # Speed in pixels per second
-    SPEED = 100
+    SPEED = 30
 
     def __init__(self, x, y, r, alpha):
-
         self.x = x
         self.y = y
         self.r = r
         self.alpha = alpha
 
     def draw(self, qp):
-        qp.setBrush(QColor(50,50,50))
-        qp.drawRect(self.x - self.r, self.y - self.r, 2 * self.r, 2 * self.r)
+        qp.setBrush(QColor(255,255,0))
+        qp.drawEllipse(self.x - self.r, self.y - self.r, 2 * self.r, 2 * self.r)
+
+        # Endpunkte der Linie
+        newx = self.r * math.cos(math.radians(self.alpha))
+        newy = self.r * math.sin(math.radians(self.alpha))
+
+        qp.drawLine(self.x, self.y, self.x + newx, self.y + newy)
+
+
+
 
     def update(self):
-        self.x += TICK_INTERVALL * (self.SPEED / MILLISECONDS_PER_SECOND)
+
+        self.xGrowth = TICK_INTERVALL * (self.SPEED / MILLISECONDS_PER_SECOND)
+        self.yGrowth = TICK_INTERVALL * (self.SPEED / MILLISECONDS_PER_SECOND)
+
+        self.x += self.xGrowth
+        self.y += self.yGrowth
+
+        self.alpha = math.degrees(math.atan2(self.yGrowth, self.xGrowth))
+
 
 
 
