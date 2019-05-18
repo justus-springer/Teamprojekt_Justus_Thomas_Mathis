@@ -4,7 +4,6 @@ from PyQt5.QtGui import QPainter, QColor
 from PyQt5.QtCore import Qt, QBasicTimer
 import numpy as np
 import math
-import matplotlib.pyplot as plt
 
 from levelLoader import LevelLoader
 
@@ -42,7 +41,7 @@ class RobotGame(QWidget):
         self.gameTimer.start(TICK_INTERVALL, self)
 
         # Initialize robot
-        self.myRobot = BaseRobot(100, 100, 25, 0)
+        self.myRobot = BaseRobot(100, 100, 25, 45)
 
 
     def initUI(self):
@@ -79,15 +78,27 @@ class RobotGame(QWidget):
             self.myRobot.update()
             self.update()
 
+    def mouseMoveEvent(self, event):
+
+        deltaX = event.x() - self.myRobot.x
+        deltaY = event.y() - self.myRobot.y
+
+        newAlpha = math.atan2(deltaY, deltaX)
+        self.myRobot.setAlphaRadians(newAlpha)
+
+
 class BaseRobot:
 
     # Speed in pixels per second
-    SPEED = 30
+    SPEED = 200
+    MOVEMENT_PER_TICK = TICK_INTERVALL * (SPEED / MILLISECONDS_PER_SECOND)
 
     def __init__(self, x, y, r, alpha):
         self.x = x
         self.y = y
         self.r = r
+
+        # angle in degrees
         self.alpha = alpha
 
     def draw(self, qp):
@@ -101,19 +112,21 @@ class BaseRobot:
         qp.drawLine(self.x, self.y, self.x + newx, self.y + newy)
 
 
-
-
     def update(self):
 
-        self.xGrowth = TICK_INTERVALL * (self.SPEED / MILLISECONDS_PER_SECOND)
-        self.yGrowth = TICK_INTERVALL * (self.SPEED / MILLISECONDS_PER_SECOND)
+        # Compute normalized direction vector (normalized)
+        dirX = math.cos(math.radians(self.alpha))
+        dirY = math.sin(math.radians(self.alpha))
 
-        self.x += self.xGrowth
-        self.y += self.yGrowth
+        # Move into that direction
+        self.x += dirX * self.MOVEMENT_PER_TICK
+        self.y += dirY * self.MOVEMENT_PER_TICK
 
-        self.alpha = math.degrees(math.atan2(self.yGrowth, self.xGrowth))
+    def setAlphaDegrees(self, alpha_degrees):
+        self.alpha = alpha_degrees
 
-
+    def setAlphaRadians(self, alpha_radians):
+        self.alpha = math.degrees(alpha_radians)
 
 
 if __name__ == '__main__':
