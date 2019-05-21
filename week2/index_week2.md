@@ -61,7 +61,7 @@ def loadLevel(filePath):
 
 Dieser Code zeichnet das Spielfeld mit 100x100 Blöcken:
 
-![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/week2/Board.png)
+![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/week2/board.png)
 
 
 Nach dem Spielfeld zeichneten wir den Roboter:
