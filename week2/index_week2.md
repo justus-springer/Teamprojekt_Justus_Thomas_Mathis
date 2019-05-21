@@ -1,11 +1,11 @@
 # Woche 2: Roboter
 
-### [<- Zurück](/../index.md) zur Projektübersicht
+### [<- ZurÃ¼ck](/../index.md) zur ProjektÃ¼bersicht
 ---
 
 ## Roboter
 
-Zuerst programmierten wir das SPielfeld:
+Zuerst programmierten wir das Spielfeld:
 
 ```python
 
@@ -59,7 +59,7 @@ def loadLevel(filePath):
               
 ```
 
-Dieser Code zeichnet das Spielfeld mit 100x100 Blöcken:
+Dieser Code zeichnet das Spielfeld mit 100x100 BlÃ¶cken:
 
 ![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/week2/Board.png)
 
@@ -85,7 +85,7 @@ def draw(self, qp):
 ![](https://raw.githubusercontent.com/justus-springer/Teamprojekt_Justus_Thomas_Mathis/gh-pages/week2/robot.png)
 
 
-Zuletzt sorgten wir dafür, dass der Roboter sich über das Feld bewegt:
+Zuletzt sorgten wir dafÃ¼r, dass der Roboter sich Ã¼ber das Feld bewegt:
 
 ```python
 
