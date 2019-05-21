@@ -60,6 +60,7 @@ class RobotGame(QWidget):
 
     def drawTiles(self, event, qp):
 
+        qp.setPen(Qt.NoPen)
         for row in range(NUMBER_OF_TILES):
             for column in range(NUMBER_OF_TILES):
                 if(self.levelMatrix[row][column] == LevelLoader.WALL_TILE):
@@ -78,14 +79,8 @@ class RobotGame(QWidget):
             self.myRobot.update()
             self.update()
 
-    def mouseMoveEvent(self, event):
-
-        deltaX = event.x() - self.myRobot.x
-        deltaY = event.y() - self.myRobot.y
-
-        newAlpha = math.atan2(deltaY, deltaX)
-        self.myRobot.setAlphaRadians(newAlpha)
-
+    def mousePressEvent(self, event):
+        self.myRobot.setTarget(event.x(), event.y())
 
 class BaseRobot:
 
@@ -101,8 +96,12 @@ class BaseRobot:
         # angle in degrees
         self.alpha = alpha
 
+        self.targetX = x
+        self.targetY = y
+
     def draw(self, qp):
         qp.setBrush(QColor(255,255,0))
+        qp.setPen(QColor(0,0,0))
         qp.drawEllipse(self.x - self.r, self.y - self.r, 2 * self.r, 2 * self.r)
 
         # Endpunkte der Linie
@@ -114,19 +113,32 @@ class BaseRobot:
 
     def update(self):
 
-        # Compute normalized direction vector (normalized)
-        dirX = math.cos(math.radians(self.alpha))
-        dirY = math.sin(math.radians(self.alpha))
+        # Compute distance to target
+        deltaX = self.targetX - self.x
+        deltaY = self.targetY - self.y
+        dist = math.sqrt(deltaX*deltaX + deltaY*deltaY)
 
-        # Move into that direction
-        self.x += dirX * self.MOVEMENT_PER_TICK
-        self.y += dirY * self.MOVEMENT_PER_TICK
+        # Orient yourself toward the target
+        self.setAlphaRadians(math.atan2(deltaY, deltaX))
+
+        if dist > self.MOVEMENT_PER_TICK:
+            # Compute normalized direction vector (normalized)
+            dirX = math.cos(math.radians(self.alpha))
+            dirY = math.sin(math.radians(self.alpha))
+
+            # Move into that direction
+            self.x += dirX * self.MOVEMENT_PER_TICK
+            self.y += dirY * self.MOVEMENT_PER_TICK
 
     def setAlphaDegrees(self, alpha_degrees):
         self.alpha = alpha_degrees
 
     def setAlphaRadians(self, alpha_radians):
         self.alpha = math.degrees(alpha_radians)
+
+    def setTarget(self, targetX, targetY):
+        self.targetX = targetX
+        self.targetY = targetY
 
 
 if __name__ == '__main__':
