@@ -31,6 +31,9 @@ class RobotGame(QWidget):
 
     def __init__(self):
         super().__init__()
+        #initialize textures
+        self.wallTexture = QPixmap('wall.png')
+        self.grassTexture = QPixmap('grass.png')
 
         # Load level data from file
         self.levelMatrix = LevelLoader.loadLevel('level1.txt')
@@ -64,14 +67,13 @@ class RobotGame(QWidget):
         for row in range(NUMBER_OF_TILES):
             for column in range(NUMBER_OF_TILES):
                 if(self.levelMatrix[row][column] == LevelLoader.WALL_TILE):
-                    qp.setBrush(WALL_TILE_COLOR)
+                    qp.drawPixmap(column*TILE_SIZE,
+                                row*TILE_SIZE,
+                                self.wallTexture)                               
                 elif(self.levelMatrix[row][column] == LevelLoader.FLOOR_TILE):
-                    qp.setBrush(FLOOR_TILE_COLOR)
-
-                qp.drawRect(column*TILE_SIZE,
-                            row*TILE_SIZE,
-                            TILE_SIZE,
-                            TILE_SIZE)
+                    qp.drawPixmap(column*TILE_SIZE,
+                                row*TILE_SIZE,
+                                self.grassTexture)
 
     def timerEvent(self, event):
 
