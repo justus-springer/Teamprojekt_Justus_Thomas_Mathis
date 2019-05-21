@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor
+from PyQt5.QtGui import QPainter, QColor, QPixmap
 from PyQt5.QtCore import Qt, QBasicTimer
 import numpy as np
 import math
@@ -32,8 +32,9 @@ class RobotGame(QWidget):
     def __init__(self):
         super().__init__()
         #initialize textures
-        self.wallTexture = QPixmap('wall.png')
-        self.grassTexture = QPixmap('grass.png')
+        self.wallTexture = QPixmap('textures/wall.png')
+        self.grassTexture = QPixmap('textures/grass.png')
+        self.mudTexture = QPixmap('textures/mud.png')
 
         # Load level data from file
         self.levelMatrix = LevelLoader.loadLevel('level1.txt')
@@ -67,13 +68,15 @@ class RobotGame(QWidget):
         for row in range(NUMBER_OF_TILES):
             for column in range(NUMBER_OF_TILES):
                 if(self.levelMatrix[row][column] == LevelLoader.WALL_TILE):
-                    qp.drawPixmap(column*TILE_SIZE,
-                                row*TILE_SIZE,
-                                self.wallTexture)                               
+                    texture = self.wallTexture
                 elif(self.levelMatrix[row][column] == LevelLoader.FLOOR_TILE):
-                    qp.drawPixmap(column*TILE_SIZE,
-                                row*TILE_SIZE,
-                                self.grassTexture)
+                    texture = self.grassTexture
+                elif(self.levelMatrix[row][column] == LevelLoader.MUD_TILE):
+                    texture = self.mudTexture
+
+                qp.drawPixmap(column*TILE_SIZE,
+                            row*TILE_SIZE,
+                            texture)
 
     def timerEvent(self, event):
 
@@ -123,12 +126,13 @@ class BaseRobot:
         # Orient yourself toward the target
         self.setAlphaRadians(math.atan2(deltaY, deltaX))
 
-        if dist > self.MOVEMENT_PER_TICK:
+        if dist > TILE_SIZE:
             # Compute normalized direction vector (normalized)
             dirX = math.cos(math.radians(self.alpha))
             dirY = math.sin(math.radians(self.alpha))
 
             # Move into that direction
+
             self.x += dirX * self.MOVEMENT_PER_TICK
             self.y += dirY * self.MOVEMENT_PER_TICK
 
