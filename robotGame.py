@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPixmap
-from PyQt5.QtCore import Qt, QBasicTimer
+from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF
 import numpy as np
 import math
 
@@ -94,47 +94,37 @@ class BaseRobot:
     MOVEMENT_PER_TICK = TICK_INTERVALL * (SPEED / MILLISECONDS_PER_SECOND)
 
     def __init__(self, x, y, r, alpha):
-        self.x = x
-        self.y = y
+
+        self.pos = QVector2D(x, y)
+        self.target = QVector2D(x, y)
         self.r = r
-
-        # angle in degrees
         self.alpha = alpha
-
-        self.targetX = x
-        self.targetY = y
 
     def draw(self, qp):
         qp.setBrush(QColor(255,255,0))
         qp.setPen(QColor(0,0,0))
-        qp.drawEllipse(self.x - self.r, self.y - self.r, 2 * self.r, 2 * self.r)
+        qp.drawEllipse(self.x() - self.r, self.y() - self.r, 2 * self.r, 2 * self.r)
 
         # Endpunkte der Linie
         newx = self.r * math.cos(math.radians(self.alpha))
         newy = self.r * math.sin(math.radians(self.alpha))
 
-        qp.drawLine(self.x, self.y, self.x + newx, self.y + newy)
+        qp.drawLine(self.x(), self.y(), self.x() + newx, self.y() + newy)
 
 
     def update(self):
 
         # Compute distance to target
-        deltaX = self.targetX - self.x
-        deltaY = self.targetY - self.y
-        dist = math.sqrt(deltaX*deltaX + deltaY*deltaY)
+        delta = self.target - self.pos
+        dist = delta.length()
+        direction = delta.normalized()
 
         # Orient yourself toward the target
-        self.setAlphaRadians(math.atan2(deltaY, deltaX))
+        self.setAlphaRadians(math.atan2(direction.y(), direction.x()))
 
         if dist > TILE_SIZE:
-            # Compute normalized direction vector (normalized)
-            dirX = math.cos(math.radians(self.alpha))
-            dirY = math.sin(math.radians(self.alpha))
-
             # Move into that direction
-
-            self.x += dirX * self.MOVEMENT_PER_TICK
-            self.y += dirY * self.MOVEMENT_PER_TICK
+            self.pos += self.MOVEMENT_PER_TICK * direction
 
     def setAlphaDegrees(self, alpha_degrees):
         self.alpha = alpha_degrees
@@ -143,8 +133,16 @@ class BaseRobot:
         self.alpha = math.degrees(alpha_radians)
 
     def setTarget(self, targetX, targetY):
-        self.targetX = targetX
-        self.targetY = targetY
+        self.target.setX(targetX)
+        self.target.setY(targetY)
+
+    @property
+    def x(self):
+        return self.pos.x
+
+    @property
+    def y(self):
+        return self.pos.y
 
 
 if __name__ == '__main__':
