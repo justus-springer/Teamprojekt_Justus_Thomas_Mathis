@@ -1,11 +1,12 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
 from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D
-from PyQt5.QtCore import Qt, QBasicTimer, QPointF
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer
 import numpy as np
 import math
 
 from levelLoader import LevelLoader
+import robots
 
 
 #Window options
@@ -23,7 +24,7 @@ WALL_TILE_COLOR = QColor(0, 0, 0)
 FLOOR_TILE_COLOR = QColor(255, 255, 255)
 TILE_SIZE = 10
 
-FPS = 30
+FPS = 60
 MILLISECONDS_PER_SECOND = 1000
 TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 
@@ -45,8 +46,11 @@ class RobotGame(QWidget):
         self.gameTimer.start(TICK_INTERVALL, self)
 
         # Initialize robot
-        self.myRobot = BaseRobot(100, 100, 25, 45)
+        self.myRobot = robots.BaseRobot(START_WINDOW_WIDTH / 2, START_WINDOW_HEIGHT / 2, 30, 0)
 
+        self.elapsedTimer = QElapsedTimer()
+        self.elapsedTimer.start()
+        self.previous = 0
 
     def initUI(self):
 
@@ -80,69 +84,15 @@ class RobotGame(QWidget):
 
     def timerEvent(self, event):
 
+        elapsed = self.elapsedTimer.elapsed()
+        deltaTimeMillis = elapsed - self.previous
+        deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
+
         if event.timerId() == self.gameTimer.timerId():
-            self.myRobot.update()
+            self.myRobot.update(deltaTime)
             self.update()
 
-    def mousePressEvent(self, event):
-        self.myRobot.setTarget(event.x(), event.y())
-
-class BaseRobot:
-
-    # Speed in pixels per second
-    SPEED = 200
-    MOVEMENT_PER_TICK = TICK_INTERVALL * (SPEED / MILLISECONDS_PER_SECOND)
-
-    def __init__(self, x, y, r, alpha):
-
-        self.pos = QVector2D(x, y)
-        self.target = QVector2D(x, y)
-        self.r = r
-        self.alpha = alpha
-
-    def draw(self, qp):
-        qp.setBrush(QColor(255,255,0))
-        qp.setPen(QColor(0,0,0))
-        qp.drawEllipse(self.x() - self.r, self.y() - self.r, 2 * self.r, 2 * self.r)
-
-        # Endpunkte der Linie
-        newx = self.r * math.cos(math.radians(self.alpha))
-        newy = self.r * math.sin(math.radians(self.alpha))
-
-        qp.drawLine(self.x(), self.y(), self.x() + newx, self.y() + newy)
-
-
-    def update(self):
-
-        # Compute distance to target
-        delta = self.target - self.pos
-        dist = delta.length()
-        direction = delta.normalized()
-
-        # Orient yourself toward the target
-        self.setAlphaRadians(math.atan2(direction.y(), direction.x()))
-
-        if dist > TILE_SIZE:
-            # Move into that direction
-            self.pos += self.MOVEMENT_PER_TICK * direction
-
-    def setAlphaDegrees(self, alpha_degrees):
-        self.alpha = alpha_degrees
-
-    def setAlphaRadians(self, alpha_radians):
-        self.alpha = math.degrees(alpha_radians)
-
-    def setTarget(self, targetX, targetY):
-        self.target.setX(targetX)
-        self.target.setY(targetY)
-
-    @property
-    def x(self):
-        return self.pos.x
-
-    @property
-    def y(self):
-        return self.pos.y
+        self.previous = elapsed
 
 
 if __name__ == '__main__':
