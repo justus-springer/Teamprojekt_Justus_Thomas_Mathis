@@ -37,7 +37,7 @@ class BaseRobot:
 
         # Apply acceleration
         self.v += self.a * deltaTime
-        self.alpha += self.a_alpha * deltaTime
+        self.v_alpha += self.a_alpha * deltaTime
 
         # Compute direction vector (normalized)
         direction = QVector2D(math.cos(math.radians(self.alpha)),
