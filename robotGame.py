@@ -24,7 +24,7 @@ WALL_TILE_COLOR = QColor(0, 0, 0)
 FLOOR_TILE_COLOR = QColor(255, 255, 255)
 TILE_SIZE = 10
 
-FPS = 60
+FPS = 30
 MILLISECONDS_PER_SECOND = 1000
 TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 
@@ -45,8 +45,24 @@ class RobotGame(QWidget):
         self.gameTimer = QBasicTimer()
         self.gameTimer.start(TICK_INTERVALL, self)
 
-        # Initialize robot
-        self.myRobot = robots.BaseRobot(START_WINDOW_WIDTH / 2, START_WINDOW_HEIGHT / 2, 30, 0)
+        # Initialize robots
+        self.robots = []
+        robot1 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.cyan)
+        robot1.setBehaviour(robots.BackAndForthBehaviour(robot1))
+        self.robots.append(robot1)
+
+        robot2 = robots.BaseRobot(300, 300, 30, 0, Qt.GlobalColor.magenta)
+        robot2.setBehaviour(robots.CircleBehaviour(robot2))
+        self.robots.append(robot2)
+
+        robot3 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.yellow)
+        robot3.setBehaviour(robots.RandomBehaviour(robot3))
+        self.robots.append(robot3)
+
+        # Start their behaviour threads
+        for robot in self.robots:
+            robot.startBehaviour()
+
 
         self.elapsedTimer = QElapsedTimer()
         self.elapsedTimer.start()
@@ -63,7 +79,8 @@ class RobotGame(QWidget):
         qp = QPainter()
         qp.begin(self)
         self.drawTiles(event, qp)
-        self.myRobot.draw(qp)
+        for robot in self.robots:
+            robot.draw(qp)
         qp.end()
 
     def drawTiles(self, event, qp):
@@ -89,7 +106,8 @@ class RobotGame(QWidget):
         deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
 
         if event.timerId() == self.gameTimer.timerId():
-            self.myRobot.update(deltaTime)
+            for robot in self.robots:
+                robot.update(deltaTime)
             self.update()
 
         self.previous = elapsed

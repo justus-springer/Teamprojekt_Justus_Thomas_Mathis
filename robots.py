@@ -1,28 +1,33 @@
 import sys
 from PyQt5.QtGui import QPainter, QVector2D, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread
 import math
+import random
 
 import robotGame
 
 class BaseRobot:
 
-    def __init__(self, x, y, r, alpha):
+    def __init__(self, x, y, r = 30, alpha = 0, color = QColor(255,255,255)):
 
         self.pos = QVector2D(x, y)
         self.target = QVector2D(x, y)
         self.r = r
-
-        self.v = 100 # unit: pixels/second
-        self.v_alpha = 100 # unit: degrees/second
-        self.a = 50 # unit: pixels/second^2
-        self.a_max = 200 # unit: pixels/second^2
         self.alpha = alpha # unit: degrees
+        self.color = color
+
+        self.a = 0 # unit: pixels/second^2
+        self.a_max = 200 # unit: pixels/second^2
+        self.v = 0 # unit: pixels/second
+        self.v_max = 200
+
         self.a_alpha = 0 # unit: degrees/second^2
         self.a_alpha_max = 200 # unit: degrees/second^2
+        self.v_alpha = 0 # unit: degrees/second
+        self.v_alpha_max = 200
 
     def draw(self, qp):
-        qp.setBrush(QColor(255,255,0))
+        qp.setBrush(self.color)
         qp.setPen(QColor(0,0,0))
         qp.drawEllipse(self.x() - self.r, self.y() - self.r, 2 * self.r, 2 * self.r)
 
@@ -35,9 +40,20 @@ class BaseRobot:
 
     def update(self, deltaTime):
 
+        # Fetch acceleration values from your thread
+        self.a, self.a_alpha = self.behaviour.fetchValues()
+        # But not too much
+        self.a = min(self.a, self.a_max)
+        self.a = max(self.a, -self.a_max)
+        self.a_alpha = min(self.a_alpha, self.a_alpha_max)
+        self.a_alpha = max(self.a_alpha, -self.a_alpha_max)
+
         # Apply acceleration
         self.v += self.a * deltaTime
         self.v_alpha += self.a_alpha * deltaTime
+        # But not too much
+        self.v = min(self.v, self.v_max)
+        self.v_alpha = min(self.v_alpha, self.v_alpha_max)
 
         # Compute direction vector (normalized)
         direction = QVector2D(math.cos(math.radians(self.alpha)),
@@ -46,6 +62,13 @@ class BaseRobot:
         # Apply velocity
         self.pos += self.v * deltaTime * direction
         self.alpha += self.v_alpha * deltaTime
+        self.alpha %= 360
+
+    def setBehaviour(self, behaviour):
+        self.behaviour = behaviour
+
+    def startBehaviour(self):
+        self.behaviour.start()
 
     @property
     def x(self):
@@ -54,3 +77,103 @@ class BaseRobot:
     @property
     def y(self):
         return self.pos.y
+
+    def get_alpha(self):
+        return self.alpha
+
+    def get_v_alpha(self):
+        return self.v_alpha
+
+    def get_a_max(self):
+        return self.a_max
+
+    def get_a_alpha_max(self):
+        return self.a_alpha_max
+
+
+
+class Behaviour(QThread):
+
+    def __init__(self, robot):
+        super().__init__()
+        self.robot = robot
+
+        # These will be fetched by the main program
+        self.a = 0
+        self.a_alpha = 0
+
+        self.a_max = self.robot.get_a_max()
+        self.a_alpha_max = self.robot.get_a_alpha_max()
+
+    def fetchValues(self):
+        return self.a, self.a_alpha
+
+
+class BackAndForthBehaviour(Behaviour):
+
+    def __init__(self, robot):
+        super().__init__(robot)
+
+    def run(self):
+
+        self.a = 200
+        self.msleep(500)
+
+        while True:
+            self.a = -200
+            self.msleep(1000)
+            self.a = 200
+            self.msleep(1000)
+
+
+class CircleBehaviour(Behaviour):
+
+    def __init__(self, robot):
+        super().__init__(robot)
+
+    def run(self):
+
+        self.a = self.a_max
+        self.a_alpha = self.a_alpha_max
+
+class RandomBehaviour(Behaviour):
+
+    def __init__(self, robot):
+        super().__init__(robot)
+
+    def run(self):
+
+        while True:
+            # sleep random amount of time
+            self.msleep(random.randrange(0, 1000))
+            # set acceleration randomly
+            self.a = random.uniform(-100, 100)
+            self.a_alpha = random.uniform(-50, 50)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#hey
