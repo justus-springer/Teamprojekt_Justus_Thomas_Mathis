@@ -22,9 +22,9 @@ class BaseRobot:
         self.v_max = 200
 
         self.a_alpha = 0 # unit: degrees/second^2
-        self.a_alpha_max = 200 # unit: degrees/second^2
+        self.a_alpha_max = 360 # unit: degrees/second^2
         self.v_alpha = 0 # unit: degrees/second
-        self.v_alpha_max = 200
+        self.v_alpha_max = 360
 
     def draw(self, qp):
         qp.setBrush(self.color)
@@ -53,7 +53,9 @@ class BaseRobot:
         self.v_alpha += self.a_alpha * deltaTime
         # But not too much
         self.v = min(self.v, self.v_max)
+        self.v = max(self.v, -self.v_max)
         self.v_alpha = min(self.v_alpha, self.v_alpha_max)
+        self.v_alpha = max(self.v_alpha, -self.v_alpha_max)
 
         # Compute direction vector (normalized)
         direction = QVector2D(math.cos(math.radians(self.alpha)),
@@ -62,7 +64,7 @@ class BaseRobot:
         # Apply velocity
         self.pos += self.v * deltaTime * direction
         self.alpha += self.v_alpha * deltaTime
-        self.alpha %= 360
+        #self.alpha %= 360
 
     def setBehaviour(self, behaviour):
         self.behaviour = behaviour
@@ -111,55 +113,43 @@ class Behaviour(QThread):
 
 class BackAndForthBehaviour(Behaviour):
 
-    def __init__(self, robot):
-        super().__init__(robot)
-
     def run(self):
 
-        self.a = 200
-        self.msleep(500)
+        self.a = self.a_max
 
         while True:
-            self.a = -200
-            self.msleep(1000)
-            self.a = 200
-            self.msleep(1000)
+            if self.robot.x() >= 700:
+                self.a = -self.a_max
+            elif self.robot.x() <= 300:
+                self.a = self.a_max
+
+            self.msleep(100)
 
 
 class CircleBehaviour(Behaviour):
-
-    def __init__(self, robot):
-        super().__init__(robot)
 
     def run(self):
 
         self.a = self.a_max
         self.a_alpha = self.a_alpha_max
+        self.msleep(500)
+        self.a_alpha = 0
+
 
 class RandomBehaviour(Behaviour):
 
-    def __init__(self, robot):
+    def __init__(self, robot, volatility):
         super().__init__(robot)
+        self.volatility = volatility
 
     def run(self):
 
         while True:
             # sleep random amount of time
-            self.msleep(random.randrange(0, 1000))
+            self.msleep(random.randrange(500, 1000))
             # set acceleration randomly
-            self.a = random.uniform(-100, 100)
-            self.a_alpha = random.uniform(-50, 50)
-
-
-
-
-
-
-
-
-
-
-
+            self.a = random.uniform(-self.volatility * self.a_max, self.volatility * self.a_max)
+            self.a_alpha = random.uniform(-self.volatility * self.a_alpha_max, self.volatility * self.a_alpha_max)
 
 
 
