@@ -59,8 +59,9 @@ class RobotGame(QWidget):
         robot3.setBehaviour(robots.RandomBehaviour(robot3, 0.3))
         self.robots.append(robot3)
 
-        robot4 = robots.BaseRobot(500, 700, 30, 0, Qt.GlobalColor.green)
-        robot4.setBehaviour(robots.RandomBehaviour(robot4, 1.0))
+        robot4 = robots.BaseRobot(500, 700, 30, 0, Qt.GlobalColor.red)
+        self.targetBehaviour = robots.TargetBehaviour(robot4)
+        robot4.setBehaviour(self.targetBehaviour)
         self.robots.append(robot4)
 
         # Start their behaviour threads
@@ -115,6 +116,13 @@ class RobotGame(QWidget):
             self.update()
 
         self.previous = elapsed
+
+    def mousePressEvent(self, event):
+
+        self.targetBehaviour.setNewTarget(event.x(), event.y())
+
+        if not self.targetBehaviour.isRunning():
+            self.targetBehaviour.start()
 
 
 if __name__ == '__main__':

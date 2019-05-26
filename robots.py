@@ -6,6 +6,11 @@ import random
 
 import robotGame
 
+EPSILON_V = 15
+EPSILON_V_ALPHA = 15
+EPSILON_ALPHA = 10
+EPSILON_POS = 10
+
 class BaseRobot:
 
     def __init__(self, x, y, r = 30, alpha = 0, color = QColor(255,255,255)):
@@ -17,9 +22,9 @@ class BaseRobot:
         self.color = color
 
         self.a = 0 # unit: pixels/second^2
-        self.a_max = 200 # unit: pixels/second^2
+        self.a_max = 100 # unit: pixels/second^2
         self.v = 0 # unit: pixels/second
-        self.v_max = 200
+        self.v_max = 150
 
         self.a_alpha = 0 # unit: degrees/second^2
         self.a_alpha_max = 360 # unit: degrees/second^2
@@ -66,6 +71,28 @@ class BaseRobot:
         self.alpha += self.v_alpha * deltaTime
         #self.alpha %= 360
 
+    def fullStop(self):
+        """ This is a special operation to fully top the robot, i.e. set v to zero.
+            It can only be called, if v is reasonably small, i.e. if |v| < EPSILON_V
+            returns True if the operation was succesfull
+        """
+
+        if math.fabs(self.v) < EPSILON_V:
+            self.v = 0
+            return True
+        else:
+            return False
+
+    def fullStopRotation(self):
+        """ see above
+        """
+        if math.fabs(self.v_alpha) < EPSILON_V_ALPHA:
+            self.v_alpha = 0
+            return True
+        else:
+            return False
+
+
     def setBehaviour(self, behaviour):
         self.behaviour = behaviour
 
@@ -79,6 +106,9 @@ class BaseRobot:
     @property
     def y(self):
         return self.pos.y
+
+    def get_v(self):
+        return self.v
 
     def get_alpha(self):
         return self.alpha
@@ -151,11 +181,101 @@ class RandomBehaviour(Behaviour):
             self.a = random.uniform(-self.volatility * self.a_max, self.volatility * self.a_max)
             self.a_alpha = random.uniform(-self.volatility * self.a_alpha_max, self.volatility * self.a_alpha_max)
 
+class TargetBehaviour(Behaviour):
+
+    def __init__(self, robot):
+        super().__init__(robot)
+        self.target_x = robot.x()
+        self.target_y = robot.y()
+
+    def setNewTarget(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+
+    def run(self):
+
+        crnt_x = self.robot.x()
+        crnt_y = self.robot.y()
+        crnt_v = self.robot.get_v()
+        delta_x = self.target_x - crnt_x
+        delta_y = self.target_y - crnt_y
+        delta_dist = math.sqrt(delta_x*delta_x + delta_y*delta_y)
+        target_alpha = math.degrees(math.atan2(delta_y, delta_x))
+
+        crnt_v_alpha = self.robot.get_v_alpha()
+        crnt_alpha = self.robot.get_alpha()
+        delta_alpha = math.fabs(target_alpha - crnt_alpha)
+
+        while (delta_alpha > EPSILON_ALPHA or
+              math.fabs(crnt_v_alpha) > EPSILON_V_ALPHA or
+              delta_dist > EPSILON_POS or
+              math.fabs(crnt_v) > EPSILON_V):
+
+            threshold_alpha = crnt_v_alpha*crnt_v_alpha / (2 * self.a_alpha_max)
+
+            if delta_alpha <= threshold_alpha:
+                self.brake_alpha()
+            else:
+                self.accel_alpha(target_alpha)
+
+            threshold_dist = crnt_v*crnt_v / (2 * self.a_max) + 10
+
+            if delta_dist <= threshold_dist:
+                self.brake()
+            else:
+                self.accel()
+
+            self.msleep(50)
+
+            crnt_x = self.robot.x()
+            crnt_y = self.robot.y()
+            crnt_v = self.robot.get_v()
+            delta_x = self.target_x - crnt_x
+            delta_y = self.target_y - crnt_y
+            delta_dist = math.sqrt(delta_x*delta_x + delta_y*delta_y)
+            target_alpha = math.degrees(math.atan2(delta_y, delta_x))
+
+            crnt_v_alpha = self.robot.get_v_alpha()
+            crnt_alpha = self.robot.get_alpha()
+            delta_alpha = math.fabs(target_alpha - crnt_alpha)
+
+            print('d_dist: {0}, crnt_v: {1}'.format(delta_dist, crnt_v))
+
+        # Target is reached
+        self.a_alpha = 0
+        self.a = 0
+        self.robot.fullStopRotation()
+        self.robot.fullStop()
+
+        print('Done')
 
 
+    def brake_alpha(self):
+        crnt_v_alpha = self.robot.get_v_alpha()
+        if crnt_v_alpha > EPSILON_V_ALPHA:
+            self.a_alpha = -self.a_alpha_max
+        elif crnt_v_alpha < EPSILON_V_ALPHA:
+            self.a_alpha = self.a_alpha_max
+        else:
+            self.a_alpha = 0
 
+    def accel_alpha(self, target_alpha):
+        if target_alpha > self.robot.get_alpha():
+            self.a_alpha = self.a_alpha_max
+        else:
+            self.a_alpha = -self.a_alpha_max
 
+    def brake(self):
+        crnt_v = self.robot.get_v()
+        if crnt_v > EPSILON_V:
+            self.a = -self.a_max
+        elif crnt_v < EPSILON_V:
+            self.a = self.a_max
+        else:
+            self.a = 0
 
+    def accel(self):
+        self.a = self.a_max
 
 
 
