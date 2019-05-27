@@ -6,8 +6,11 @@ import random
 
 import robotGame
 
-EPSILON_V = 15
-EPSILON_V_ALPHA = 15
+# Epsilon values represent the smallest reasonable value greater than 0
+# Any speed/distance below their epsilon value should be interpreted as practically 0
+# Handle with caution
+EPSILON_V = 20
+EPSILON_V_ALPHA = 20
 EPSILON_ALPHA = 10
 EPSILON_POS = 10
 
@@ -24,23 +27,23 @@ class BaseRobot:
         self.a = 0 # unit: pixels/second^2
         self.a_max = 100 # unit: pixels/second^2
         self.v = 0 # unit: pixels/second
-        self.v_max = 150
+        self.v_max = 150 # unit pixels/second
 
         self.a_alpha = 0 # unit: degrees/second^2
         self.a_alpha_max = 360 # unit: degrees/second^2
         self.v_alpha = 0 # unit: degrees/second
-        self.v_alpha_max = 360
+        self.v_alpha_max = 360 # unit: degrees/second
 
     def draw(self, qp):
         qp.setBrush(self.color)
         qp.setPen(QColor(0,0,0))
         qp.drawEllipse(self.x() - self.r, self.y() - self.r, 2 * self.r, 2 * self.r)
 
-        # Endpunkte der Linie
-        newx = self.r * math.cos(math.radians(self.alpha))
-        newy = self.r * math.sin(math.radians(self.alpha))
+        # End points of the line
+        end_x = self.r * math.cos(math.radians(self.alpha))
+        end_y = self.r * math.sin(math.radians(self.alpha))
 
-        qp.drawLine(self.x(), self.y(), self.x() + newx, self.y() + newy)
+        qp.drawLine(self.x(), self.y(), self.x() + end_x, self.y() + end_y)
 
 
     def update(self, deltaTime):
@@ -69,7 +72,6 @@ class BaseRobot:
         # Apply velocity
         self.pos += self.v * deltaTime * direction
         self.alpha += self.v_alpha * deltaTime
-        #self.alpha %= 360
 
     def fullStop(self):
         """ This is a special operation to fully top the robot, i.e. set v to zero.
@@ -194,39 +196,9 @@ class TargetBehaviour(Behaviour):
 
     def run(self):
 
-        crnt_x = self.robot.x()
-        crnt_y = self.robot.y()
-        crnt_v = self.robot.get_v()
-        delta_x = self.target_x - crnt_x
-        delta_y = self.target_y - crnt_y
-        delta_dist = math.sqrt(delta_x*delta_x + delta_y*delta_y)
-        target_alpha = math.degrees(math.atan2(delta_y, delta_x))
+        while True:
 
-        crnt_v_alpha = self.robot.get_v_alpha()
-        crnt_alpha = self.robot.get_alpha()
-        delta_alpha = math.fabs(target_alpha - crnt_alpha)
-
-        while (delta_alpha > EPSILON_ALPHA or
-              math.fabs(crnt_v_alpha) > EPSILON_V_ALPHA or
-              delta_dist > EPSILON_POS or
-              math.fabs(crnt_v) > EPSILON_V):
-
-            threshold_alpha = crnt_v_alpha*crnt_v_alpha / (2 * self.a_alpha_max)
-
-            if delta_alpha <= threshold_alpha:
-                self.brake_alpha()
-            else:
-                self.accel_alpha(target_alpha)
-
-            threshold_dist = crnt_v*crnt_v / (2 * self.a_max) + 10
-
-            if delta_dist <= threshold_dist:
-                self.brake()
-            else:
-                self.accel()
-
-            self.msleep(50)
-
+            # Get current values
             crnt_x = self.robot.x()
             crnt_y = self.robot.y()
             crnt_v = self.robot.get_v()
@@ -239,15 +211,36 @@ class TargetBehaviour(Behaviour):
             crnt_alpha = self.robot.get_alpha()
             delta_alpha = math.fabs(target_alpha - crnt_alpha)
 
-            print('d_dist: {0}, crnt_v: {1}'.format(delta_dist, crnt_v))
+            # Target is reached
+            if (delta_alpha < EPSILON_POS and
+                math.fabs(crnt_v) < EPSILON_V and
+                math.fabs(crnt_v_alpha) < EPSILON_V_ALPHA):
 
-        # Target is reached
+                break
+
+            # This is the remaining distance travelled if the robot starts braking now
+            # EPSILON_POS is added as a buffer so he doesn't overshoot
+            threshold_dist = crnt_v*crnt_v / (2 * self.a_max) + EPSILON_POS
+
+            if delta_dist <= threshold_dist:
+                self.brake()
+            else:
+                self.accel()
+
+            threshold_alpha = crnt_v_alpha*crnt_v_alpha / (2 * self.a_alpha_max)
+
+            if delta_alpha <= threshold_alpha:
+                self.brake_alpha()
+            else:
+                self.accel_alpha(target_alpha)
+
+            self.msleep(50)
+
+
         self.a_alpha = 0
         self.a = 0
         self.robot.fullStopRotation()
         self.robot.fullStop()
-
-        print('Done')
 
 
     def brake_alpha(self):
@@ -276,14 +269,3 @@ class TargetBehaviour(Behaviour):
 
     def accel(self):
         self.a = self.a_max
-
-
-
-
-
-
-
-
-
-
-#hey
