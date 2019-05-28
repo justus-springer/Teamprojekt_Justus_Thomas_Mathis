@@ -112,7 +112,7 @@ class RobotGame(QWidget):
 
         if event.timerId() == self.gameTimer.timerId():
             for robot in self.robots:
-                robot.update(deltaTime)
+                robot.update(deltaTime, self.robots)
             self.update()
 
         self.previous = elapsed

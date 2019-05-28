@@ -46,7 +46,7 @@ class BaseRobot:
         qp.drawLine(self.x(), self.y(), self.x() + end_x, self.y() + end_y)
 
 
-    def update(self, deltaTime):
+    def update(self, deltaTime, robotList):
 
         # Fetch acceleration values from your thread
         self.a, self.a_alpha = self.behaviour.fetchValues()
@@ -72,6 +72,22 @@ class BaseRobot:
         # Apply velocity
         self.pos += self.v * deltaTime * direction
         self.alpha += self.v_alpha * deltaTime
+
+        self.collideWithRobots(robotList)
+
+    def collideWithRobots(self, robotList):
+
+        for robot in robotList:
+            if robot != self:
+                # distance to other robot
+                distance = (self.pos - robot.get_pos()).length()
+                direction = (self.pos - robot.get_pos()).normalized()
+
+                if distance <= self.r + robot.get_r():
+                    overlap = self.r + robot.get_r() - distance
+                    self.pos += overlap / 2 * direction
+                    robot.set_pos(robot.get_pos() - overlap / 2 * direction)
+
 
     def fullStop(self):
         """ This is a special operation to fully top the robot, i.e. set v to zero.
@@ -108,6 +124,15 @@ class BaseRobot:
     @property
     def y(self):
         return self.pos.y
+
+    def get_r(self):
+        return self.r
+
+    def get_pos(self):
+        return self.pos
+
+    def set_pos(self, pos):
+        self.pos = pos
 
     def get_v(self):
         return self.v
