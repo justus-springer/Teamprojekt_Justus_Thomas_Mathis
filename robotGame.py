@@ -64,6 +64,10 @@ class RobotGame(QWidget):
         robot4.setBehaviour(self.targetBehaviour)
         self.robots.append(robot4)
 
+        robot5 = robots.BaseRobot(50, 700, 30, 0, Qt.GlobalColor.green)
+        robot5.setBehaviour(robots.CurveBehaviour(robot5))
+        self.robots.append(robot5)
+
         # Start their behaviour threads
         for robot in self.robots:
             robot.startBehaviour()
