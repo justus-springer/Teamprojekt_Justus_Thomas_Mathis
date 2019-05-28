@@ -213,8 +213,7 @@ class TargetBehaviour(Behaviour):
 
             # Target is reached
             if (delta_alpha < EPSILON_POS and
-                math.fabs(crnt_v) < EPSILON_V and
-                math.fabs(crnt_v_alpha) < EPSILON_V_ALPHA):
+                math.fabs(crnt_v) < EPSILON_V):
 
                 break
 
