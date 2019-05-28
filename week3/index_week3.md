@@ -5,9 +5,9 @@
 
 ## Roboter und Threads
 
+### Behaviours
 
-
-Durch den neuen Timer wird in jedem Schritt die Zeit gemessen, die seit dem letzten Tick vergangen ist und an den Roboter übergeben.
+Durch den neuen Timer wird in jedem Schritt die Zeit gemessen, die seit dem letzten Tick vergangen ist und an den Roboter übergeben. Dadurch weiß der Roboter, wie weit er sich in einem gegebenen Tick bewegen muss. Das Spiel wirkt damit flüssiger und die Spielgeschwindigkeit ist unabhängig von der Tickrate:
 
 ```python
 
@@ -22,10 +22,10 @@ Durch den neuen Timer wird in jedem Schritt die Zeit gemessen, die seit dem letz
                 robot.update(deltaTime)
             self.update()
 
-self.previous = elapsed
+        self.previous = elapsed
 
 ```
-Jeder Roboter bekommt nun ein Attribut vom Typ "Behaviour". Dies ist der Thread in dem der Roboter seine Bewegungen steuert.
+Jeder Roboter bekommt nun einen Thread, in dem seine Bewegungsabläufe gesteuert werden. Dazu haben wir eine Basisklasse "Behaviour" eingebaut, die von QThread erbt. Ein Behaviour enthält Werte für die Beschleunigungen, sowie eine Referenz auf den Roboter, der vom Behaviour gesteuert werde soll.
 
 ```python
 
@@ -45,7 +45,11 @@ class Behaviour(QThread):
   def fetchValues(self):
 	      return self.a, self.a_alpha
 
+```
 
+In der Roboterklasse können Behaviours gesetzt und gestartet werden:
+
+```python
 def setBehaviour(self, behaviour):
         self.behaviour = behaviour
 
@@ -53,41 +57,45 @@ def startBehaviour(self):
 	      self.behaviour.start()
 
 ```
-In der update Methode des Roboters werden die Werte a und a_alpha nun vom Thread abgefragt und die neuen Geschwindigkeiten und Positionen berechnet.
+
+In der update Methode des Roboters werden die Werte a und a_alpha nun vom Thread abgefragt und die neuen Geschwindigkeiten und Positionen mithilfe von deltaTime berechnet.
 
 ```python
 
- def update(self, deltaTime):
+ def update(self, deltaTime, robotList):
 
-        # Fetch acceleration values from your thread
-        self.a, self.a_alpha = self.behaviour.fetchValues()
-        # But not too much
-        self.a = min(self.a, self.a_max)
-        self.a = max(self.a, -self.a_max)
-        self.a_alpha = min(self.a_alpha, self.a_alpha_max)
-        self.a_alpha = max(self.a_alpha, -self.a_alpha_max)
+      # Fetch acceleration values from your thread
+      self.a, self.a_alpha = self.behaviour.fetchValues()
+      # But not too much
+      self.a = min(self.a, self.a_max)
+      self.a = max(self.a, -self.a_max)
+      self.a_alpha = min(self.a_alpha, self.a_alpha_max)
+      self.a_alpha = max(self.a_alpha, -self.a_alpha_max)
 
-        # Apply acceleration
-        self.v += self.a * deltaTime
-        self.v_alpha += self.a_alpha * deltaTime
-        # But not too much
-        self.v = min(self.v, self.v_max)
-        self.v = max(self.v, -self.v_max)
-        self.v_alpha = min(self.v_alpha, self.v_alpha_max)
-        self.v_alpha = max(self.v_alpha, -self.v_alpha_max)
+      # Apply acceleration
+      self.v += self.a * deltaTime
+      self.v_alpha += self.a_alpha * deltaTime
+      # But not too much
+      self.v = min(self.v, self.v_max)
+      self.v = max(self.v, -self.v_max)
+      self.v_alpha = min(self.v_alpha, self.v_alpha_max)
+      self.v_alpha = max(self.v_alpha, -self.v_alpha_max)
 
-        # Compute direction vector (normalized)
-        direction = QVector2D(math.cos(math.radians(self.alpha)),
-                              math.sin(math.radians(self.alpha)))
+      # Compute direction vector (normalized)
+      direction = QVector2D(math.cos(math.radians(self.alpha)),
+                            math.sin(math.radians(self.alpha)))
 
-        # Apply velocity
-        self.pos += self.v * deltaTime * direction
-        self.alpha += self.v_alpha * deltaTime
+      # Apply velocity
+      self.pos += self.v * deltaTime * direction
+      self.alpha += self.v_alpha * deltaTime
 
-        self.collideWithRobots(robotList)
+      self.collideWithRobots(robotList)
 
 ```
-Hier sind drei einfache Beispiel-Behaviours:
+Nun können wir verschiedene Verhaltensweisen schreiben, indem wir die run Methode von QThread implementieren: Zunächst bauen wir 3 einfache Bewegungsabläufe ein:
+- BackAndForthBehaviour: Hier bewegt sich der Roboter ständig vor und zurück.
+- CircleBehaviour: Der Roboter dreht sich im Kreis.
+- RandomBehaviour: Der Roboter bewegt sich zufällig.
 
 ```python
 
@@ -131,9 +139,31 @@ class RandomBehaviour(Behaviour):
             self.a = random.uniform(-self.volatility * self.a_max, self.volatility * self.a_max)
             self.a_alpha = random.uniform(-self.volatility * self.a_alpha_max, self.volatility * self.a_alpha_max)
 
-
 ```
-Als zusätzliches Feature haben wir Kollision zwischen Robotern eingefügt:
+In der robotGame Klasse werden dann die Roboter erzeugt und mit ihren Verhalten ausgestattet:
+
+```python
+# Initialize robots
+self.robots = []
+robot1 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.cyan)
+robot1.setBehaviour(robots.BackAndForthBehaviour(robot1))
+self.robots.append(robot1)
+
+robot2 = robots.BaseRobot(300, 300, 30, 0, Qt.GlobalColor.magenta)
+robot2.setBehaviour(robots.CircleBehaviour(robot2))
+self.robots.append(robot2)
+
+robot3 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.yellow)
+robot3.setBehaviour(robots.RandomBehaviour(robot3, 0.3))
+self.robots.append(robot3)
+
+# Start their behaviour threads
+for robot in self.robots:
+    robot.startBehaviour()
+```
+
+### Kollision
+Als zusätzliches Feature haben wir Kollision zwischen Robotern eingebaut:
 
 ```python
 def collideWithRobots(self, robotList):
@@ -149,7 +179,8 @@ def collideWithRobots(self, robotList):
                     self.pos += overlap / 2 * direction
                     robot.set_pos(robot.get_pos() - overlap / 2 * direction)
 ```
-
+### TargetBehaviour
+Als letztes kommt ein etwas komplizierteres Verhalten: Mit TargetBehaviour soll der Roboter in der Lage sein, einem durch Mausklick gesetzten Ziel zu folgen:
 ```python
 
 class TargetBehaviour(Behaviour):
@@ -238,4 +269,15 @@ class TargetBehaviour(Behaviour):
     def accel(self):
         self.a = self.a_max
 
+```
+Ein Problem was auftrat: Es ist ziemlich schwierig mit dem Roboter anzuhalten, wenn nur Beschleunigungswerte verändert werden dürfen. Daher haben wir den Roboter um die speziellen Operationen "fullStop" und "fullStopRotation" erweitert, welche vom Thread aus aufgerufen werden können. Wenn die Geschwindigkeit kleiner als ein vorgegebenes Epsilon ist, darf der Roboter damit komplett anhalten:
+
+```python
+def fullStop(self):
+
+    if math.fabs(self.v) < EPSILON_V:
+        self.v = 0
+        return True
+      else:
+        return False
 ```
