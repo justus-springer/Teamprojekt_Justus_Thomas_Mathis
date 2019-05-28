@@ -193,6 +193,22 @@ class CircleBehaviour(Behaviour):
         self.a_alpha = 0
 
 
+class CurveBehaviour(Behaviour):
+
+    def run(self):
+
+        self.a = self.a_max
+        self.msleep(700)
+        self.a = 0
+
+        while True:
+            if self.robot.get_alpha() >= 0:
+                self.a_alpha = -self.a_alpha_max/8
+
+            elif self.robot.get_alpha() <= -10:
+                self.a_alpha = self.a_alpha_max/8
+
+
 class RandomBehaviour(Behaviour):
 
     def __init__(self, robot, volatility):
