@@ -95,6 +95,7 @@ In der update Methode des Roboters werden die Werte a und a_alpha nun vom Thread
 Nun können wir verschiedene Verhaltensweisen schreiben, indem wir die run Methode von QThread implementieren: Zunächst bauen wir 3 einfache Bewegungsabläufe ein:
 - BackAndForthBehaviour: Hier bewegt sich der Roboter ständig vor und zurück.
 - CircleBehaviour: Der Roboter dreht sich im Kreis.
+- CurveBehaviour: Hier fährt der Roboter Kurven.
 - RandomBehaviour: Der Roboter bewegt sich zufällig.
 
 ```python
@@ -122,6 +123,22 @@ class CircleBehaviour(Behaviour):
         self.a_alpha = self.a_alpha_max
         self.msleep(500)
         self.a_alpha = 0
+	
+	
+class CurveBehaviour(Behaviour):
+
+    def run(self):
+
+        self.a = self.a_max
+        self.msleep(700)
+        self.a = 0
+
+        while True:
+            if self.robot.get_alpha() >= 0:
+                self.a_alpha = -self.a_alpha_max/8
+
+            elif self.robot.get_alpha() <= -10:
+                self.a_alpha = self.a_alpha_max/8
 
 
 class RandomBehaviour(Behaviour):
