@@ -25,7 +25,7 @@ Durch den neuen Timer wird in jedem Schritt die Zeit gemessen, die seit dem letz
 self.previous = elapsed
 
 ```
-
+Jeder Roboter bekommt nun ein Attribut vom Typ "Behaviour". Dies ist der Thread in dem der Roboter seine Bewegungen steuert.
 
 ```python
 
@@ -42,17 +42,18 @@ class Behaviour(QThread):
         self.a_max = self.robot.get_a_max()
         self.a_alpha_max = self.robot.get_a_alpha_max()
 
-    def fetchValues(self):
-	return self.a, self.a_alpha
+  def fetchValues(self):
+	      return self.a, self.a_alpha
 
 
 def setBehaviour(self, behaviour):
         self.behaviour = behaviour
 
-    def startBehaviour(self):
-	self.behaviour.start()
+def startBehaviour(self):
+	      self.behaviour.start()
 
 ```
+In der update Methode des Roboters werden die Werte a und a_alpha nun vom Thread abgefragt und die neuen Geschwindigkeiten und Positionen berechnet.
 
 ```python
 
@@ -81,11 +82,12 @@ def setBehaviour(self, behaviour):
 
         # Apply velocity
         self.pos += self.v * deltaTime * direction
-self.alpha += self.v_alpha * deltaTime
+        self.alpha += self.v_alpha * deltaTime
+
+        self.collideWithRobots(robotList)
 
 ```
-
-
+Hier sind drei einfache Beispiel-Behaviours:
 
 ```python
 
@@ -131,8 +133,24 @@ class RandomBehaviour(Behaviour):
 
 
 ```
+Als zusätzliches Feature haben wir Kollision zwischen Robotern eingefügt:
 
-```python 
+```python
+def collideWithRobots(self, robotList):
+
+        for robot in robotList:
+            if robot != self:
+                # distance to other robot
+                distance = (self.pos - robot.get_pos()).length()
+                direction = (self.pos - robot.get_pos()).normalized()
+
+                if distance <= self.r + robot.get_r():
+                    overlap = self.r + robot.get_r() - distance
+                    self.pos += overlap / 2 * direction
+                    robot.set_pos(robot.get_pos() - overlap / 2 * direction)
+```
+
+```python
 
 class TargetBehaviour(Behaviour):
 
@@ -218,12 +236,6 @@ class TargetBehaviour(Behaviour):
             self.a = 0
 
     def accel(self):
-self.a = self.a_max
+        self.a = self.a_max
 
 ```
-
-
-
-
-
-
