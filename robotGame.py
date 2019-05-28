@@ -1,11 +1,12 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPixmap
-from PyQt5.QtCore import Qt, QBasicTimer
+from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer
 import numpy as np
 import math
 
 from levelLoader import LevelLoader
+import robots
 
 
 #Window options
@@ -44,9 +45,33 @@ class RobotGame(QWidget):
         self.gameTimer = QBasicTimer()
         self.gameTimer.start(TICK_INTERVALL, self)
 
-        # Initialize robot
-        self.myRobot = BaseRobot(100, 100, 25, 45)
+        # Initialize robots
+        self.robots = []
+        robot1 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.cyan)
+        robot1.setBehaviour(robots.BackAndForthBehaviour(robot1))
+        self.robots.append(robot1)
 
+        robot2 = robots.BaseRobot(300, 300, 30, 0, Qt.GlobalColor.magenta)
+        robot2.setBehaviour(robots.CircleBehaviour(robot2))
+        self.robots.append(robot2)
+
+        robot3 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.yellow)
+        robot3.setBehaviour(robots.RandomBehaviour(robot3, 0.3))
+        self.robots.append(robot3)
+
+        robot4 = robots.BaseRobot(500, 700, 30, 0, Qt.GlobalColor.red)
+        self.targetBehaviour = robots.TargetBehaviour(robot4)
+        robot4.setBehaviour(self.targetBehaviour)
+        self.robots.append(robot4)
+
+        # Start their behaviour threads
+        for robot in self.robots:
+            robot.startBehaviour()
+
+
+        self.elapsedTimer = QElapsedTimer()
+        self.elapsedTimer.start()
+        self.previous = 0
 
     def initUI(self):
 
@@ -59,7 +84,8 @@ class RobotGame(QWidget):
         qp = QPainter()
         qp.begin(self)
         self.drawTiles(event, qp)
-        self.myRobot.draw(qp)
+        for robot in self.robots:
+            robot.draw(qp)
         qp.end()
 
     def drawTiles(self, event, qp):
@@ -80,71 +106,23 @@ class RobotGame(QWidget):
 
     def timerEvent(self, event):
 
+        elapsed = self.elapsedTimer.elapsed()
+        deltaTimeMillis = elapsed - self.previous
+        deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
+
         if event.timerId() == self.gameTimer.timerId():
-            self.myRobot.update()
+            for robot in self.robots:
+                robot.update(deltaTime, self.robots)
             self.update()
 
+        self.previous = elapsed
+
     def mousePressEvent(self, event):
-        self.myRobot.setTarget(event.x(), event.y())
 
-class BaseRobot:
+        self.targetBehaviour.setNewTarget(event.x(), event.y())
 
-    # Speed in pixels per second
-    SPEED = 200
-    MOVEMENT_PER_TICK = TICK_INTERVALL * (SPEED / MILLISECONDS_PER_SECOND)
-
-    def __init__(self, x, y, r, alpha):
-        self.x = x
-        self.y = y
-        self.r = r
-
-        # angle in degrees
-        self.alpha = alpha
-
-        self.targetX = x
-        self.targetY = y
-
-    def draw(self, qp):
-        qp.setBrush(QColor(255,255,0))
-        qp.setPen(QColor(0,0,0))
-        qp.drawEllipse(self.x - self.r, self.y - self.r, 2 * self.r, 2 * self.r)
-
-        # Endpunkte der Linie
-        newx = self.r * math.cos(math.radians(self.alpha))
-        newy = self.r * math.sin(math.radians(self.alpha))
-
-        qp.drawLine(self.x, self.y, self.x + newx, self.y + newy)
-
-
-    def update(self):
-
-        # Compute distance to target
-        deltaX = self.targetX - self.x
-        deltaY = self.targetY - self.y
-        dist = math.sqrt(deltaX*deltaX + deltaY*deltaY)
-
-        # Orient yourself toward the target
-        self.setAlphaRadians(math.atan2(deltaY, deltaX))
-
-        if dist > TILE_SIZE:
-            # Compute normalized direction vector (normalized)
-            dirX = math.cos(math.radians(self.alpha))
-            dirY = math.sin(math.radians(self.alpha))
-
-            # Move into that direction
-
-            self.x += dirX * self.MOVEMENT_PER_TICK
-            self.y += dirY * self.MOVEMENT_PER_TICK
-
-    def setAlphaDegrees(self, alpha_degrees):
-        self.alpha = alpha_degrees
-
-    def setAlphaRadians(self, alpha_radians):
-        self.alpha = math.degrees(alpha_radians)
-
-    def setTarget(self, targetX, targetY):
-        self.targetX = targetX
-        self.targetY = targetY
+        if not self.targetBehaviour.isRunning():
+            self.targetBehaviour.start()
 
 
 if __name__ == '__main__':
