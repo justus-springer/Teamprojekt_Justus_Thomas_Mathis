@@ -208,6 +208,8 @@ class CurveBehaviour(Behaviour):
             elif self.robot.get_alpha() <= -10:
                 self.a_alpha = self.a_alpha_max/8
 
+            self.msleep(100)
+
 
 class RandomBehaviour(Behaviour):
 
