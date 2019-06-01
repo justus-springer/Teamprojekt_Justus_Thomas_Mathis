@@ -1,12 +1,13 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
 from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D
-from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal
 import numpy as np
 import math
 
 from levelLoader import LevelLoader
 import robots
+import control
 
 
 #Window options
@@ -30,6 +31,10 @@ TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 
 class RobotGame(QWidget):
 
+    setTargetSignal = pyqtSignal(float, float)
+
+    positionsDataSignal = pyqtSignal(dict)
+
     def __init__(self):
         super().__init__()
         #initialize textures
@@ -46,36 +51,41 @@ class RobotGame(QWidget):
         self.gameTimer.start(TICK_INTERVALL, self)
 
         # Initialize robots
-        self.robots = []
-        robot1 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.cyan)
-        robot1.setBehaviour(robots.BackAndForthBehaviour(robot1))
-        self.robots.append(robot1)
+        robot1 = robots.BaseRobot(1, 500, 500, 30, 0, Qt.GlobalColor.yellow)
+        robot2 = robots.BaseRobot(2, 500, 700, 30, 0, Qt.GlobalColor.cyan)
+        robot3 = robots.BaseRobot(3, 300, 300, 30, 0, Qt.GlobalColor.red)
+        self.robots = [robot1, robot2, robot3]
 
-        robot2 = robots.BaseRobot(300, 300, 30, 0, Qt.GlobalColor.magenta)
-        robot2.setBehaviour(robots.CircleBehaviour(robot2))
-        self.robots.append(robot2)
+        # Initialize controllers
+        randomController = control.RandomController(1, 0.5)
+        followController = control.FollowController(2, 3)
+        targetController = control.TargetController(3)
+        self.setTargetSignal.connect(targetController.setTarget)
 
-        robot3 = robots.BaseRobot(500, 500, 30, 0, Qt.GlobalColor.yellow)
-        robot3.setBehaviour(robots.RandomBehaviour(robot3, 0.3))
-        self.robots.append(robot3)
+        robot1.controller = randomController
+        robot2.controller = followController
+        robot3.controller = targetController
 
-        robot4 = robots.BaseRobot(500, 700, 30, 0, Qt.GlobalColor.red)
-        self.targetBehaviour = robots.TargetBehaviour(robot4)
-        robot4.setBehaviour(self.targetBehaviour)
-        self.robots.append(robot4)
-
-        robot5 = robots.BaseRobot(50, 700, 30, 0, Qt.GlobalColor.green)
-        robot5.setBehaviour(robots.CurveBehaviour(robot5))
-        self.robots.append(robot5)
-
-        # Start their behaviour threads
         for robot in self.robots:
-            robot.startBehaviour()
+            # Start the controller threads
+            robot.controller.start()
+            
+            # connect signals (hook up the controller to the robot)
+            robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
+            robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
+            robot.controller.fullStopSignal.connect(robot.fullStop)
+            robot.controller.fullStopRotationSignal.connect(robot.fullStopRotation)
+            self.positionsDataSignal.connect(robot.controller.receiveRobotPositions)
 
+            # Tell the controller the specs of the robot (a_max and a_alpha_max)
+            robot.robotSpecsSignal.emit(robot.get_a_max(), robot.get_a_alpha_max())
 
+        # For deltaTime
         self.elapsedTimer = QElapsedTimer()
         self.elapsedTimer.start()
         self.previous = 0
+
+        self.tickCounter = 0
 
     def initUI(self):
 
@@ -110,23 +120,31 @@ class RobotGame(QWidget):
 
     def timerEvent(self, event):
 
+        self.tickCounter += 1
+
         elapsed = self.elapsedTimer.elapsed()
         deltaTimeMillis = elapsed - self.previous
         deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
 
-        if event.timerId() == self.gameTimer.timerId():
+        # Update robots
+        for robot in self.robots:
+            robot.update(deltaTime, self.robots)
+
+        # send positions data every 10th tick
+        if self.tickCounter % 10 == 0:
+            positionsData = {}
             for robot in self.robots:
-                robot.update(deltaTime, self.robots)
-            self.update()
+                positionsData[robot.id] = {'x' : robot.x(), 'y' : robot.y()}
+            self.positionsDataSignal.emit(positionsData)
+
+        # Update visuals
+        self.update()
 
         self.previous = elapsed
 
     def mousePressEvent(self, event):
 
-        self.targetBehaviour.setNewTarget(event.x(), event.y())
-
-        if not self.targetBehaviour.isRunning():
-            self.targetBehaviour.start()
+        self.setTargetSignal.emit(event.x(), event.y())
 
 
 if __name__ == '__main__':
