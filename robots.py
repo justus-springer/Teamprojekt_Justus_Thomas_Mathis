@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtGui import QPainter, QVector2D, QColor
-from PyQt5.QtCore import Qt, QThread
+from PyQt5.QtCore import Qt, QObject, pyqtSignal
 import math
 import random
 
@@ -14,23 +14,34 @@ EPSILON_V_ALPHA = 20
 EPSILON_ALPHA = 10
 EPSILON_POS = 10
 
-class BaseRobot:
+A_MAX = 100
+A_ALPHA_MAX = 360
 
-    def __init__(self, x, y, r = 30, alpha = 0, color = QColor(255,255,255)):
+class BaseRobot(QObject):
 
+    # This will be emittet once at the beginning of the game to tell the controller the values a_max and a_alpha_max
+    robotSpecsSignal = pyqtSignal(float, float)
+
+    # This will be emittet every tick to tell the controller current values of x, y, alpha, v, v_alpha
+    robotInfoSignal = pyqtSignal(float, float, float, float, float)
+
+    def __init__(self, id, x, y, r = 30, alpha = 0, color = QColor(255,255,255)):
+
+        super().__init__()
+
+        self._id = id
         self.pos = QVector2D(x, y)
-        self.target = QVector2D(x, y)
         self.r = r
         self.alpha = alpha # unit: degrees
         self.color = color
 
         self.a = 0 # unit: pixels/second^2
-        self.a_max = 100 # unit: pixels/second^2
+        self.a_max = A_MAX # unit: pixels/second^2
         self.v = 0 # unit: pixels/second
         self.v_max = 150 # unit pixels/second
 
         self.a_alpha = 0 # unit: degrees/second^2
-        self.a_alpha_max = 360 # unit: degrees/second^2
+        self.a_alpha_max = A_ALPHA_MAX # unit: degrees/second^2
         self.v_alpha = 0 # unit: degrees/second
         self.v_alpha_max = 360 # unit: degrees/second
 
@@ -49,7 +60,8 @@ class BaseRobot:
     def update(self, deltaTime, robotList):
 
         # Fetch acceleration values from your thread
-        self.a, self.a_alpha = self.behaviour.fetchValues()
+        self.a, self.a_alpha = self.controller.fetchValues()
+        
         # But not too much
         self.a = min(self.a, self.a_max)
         self.a = max(self.a, -self.a_max)
@@ -72,6 +84,10 @@ class BaseRobot:
         # Apply velocity
         self.pos += self.v * deltaTime * direction
         self.alpha += self.v_alpha * deltaTime
+        self.alpha %= 360
+
+        # send current information to the controller
+        self.robotInfoSignal.emit(self.x(), self.y(), self.alpha, self.v, self.v_alpha)
 
         self.collideWithRobots(robotList)
 
@@ -95,6 +111,7 @@ class BaseRobot:
             returns True if the operation was succesfull
         """
 
+        print('full stop, robot: {0}'.format(self.id))
         if math.fabs(self.v) < EPSILON_V:
             self.v = 0
             return True
@@ -110,12 +127,13 @@ class BaseRobot:
         else:
             return False
 
+    def setController(self, controller):
+        self._controller = controller
 
-    def setBehaviour(self, behaviour):
-        self.behaviour = behaviour
+    def getController(self):
+        return self._controller
 
-    def startBehaviour(self):
-        self.behaviour.start()
+    controller = property(getController, setController)
 
     @property
     def x(self):
@@ -124,6 +142,10 @@ class BaseRobot:
     @property
     def y(self):
         return self.pos.y
+
+    @property
+    def id(self):
+        return self._id
 
     def get_r(self):
         return self.r
@@ -148,166 +170,3 @@ class BaseRobot:
 
     def get_a_alpha_max(self):
         return self.a_alpha_max
-
-
-
-class Behaviour(QThread):
-
-    def __init__(self, robot):
-        super().__init__()
-        self.robot = robot
-
-        # These will be fetched by the main program
-        self.a = 0
-        self.a_alpha = 0
-
-        self.a_max = self.robot.get_a_max()
-        self.a_alpha_max = self.robot.get_a_alpha_max()
-
-    def fetchValues(self):
-        return self.a, self.a_alpha
-
-
-class BackAndForthBehaviour(Behaviour):
-
-    def run(self):
-
-        self.a = self.a_max
-
-        while True:
-            if self.robot.x() >= 700:
-                self.a = -self.a_max
-            elif self.robot.x() <= 300:
-                self.a = self.a_max
-
-            self.msleep(100)
-
-
-class CircleBehaviour(Behaviour):
-
-    def run(self):
-
-        self.a = self.a_max
-        self.a_alpha = self.a_alpha_max
-        self.msleep(500)
-        self.a_alpha = 0
-
-
-class CurveBehaviour(Behaviour):
-
-    def run(self):
-
-        self.a = self.a_max
-        self.msleep(700)
-        self.a = 0
-
-        while True:
-            if self.robot.get_alpha() >= 0:
-                self.a_alpha = -self.a_alpha_max/8
-
-            elif self.robot.get_alpha() <= -10:
-                self.a_alpha = self.a_alpha_max/8
-
-            self.msleep(100)
-
-
-class RandomBehaviour(Behaviour):
-
-    def __init__(self, robot, volatility):
-        super().__init__(robot)
-        self.volatility = volatility
-
-    def run(self):
-
-        while True:
-            # sleep random amount of time
-            self.msleep(random.randrange(500, 1000))
-            # set acceleration randomly
-            self.a = random.uniform(-self.volatility * self.a_max, self.volatility * self.a_max)
-            self.a_alpha = random.uniform(-self.volatility * self.a_alpha_max, self.volatility * self.a_alpha_max)
-
-class TargetBehaviour(Behaviour):
-
-    def __init__(self, robot):
-        super().__init__(robot)
-        self.target_x = robot.x()
-        self.target_y = robot.y()
-
-    def setNewTarget(self, target_x, target_y):
-        self.target_x = target_x
-        self.target_y = target_y
-
-    def run(self):
-
-        while True:
-
-            # Get current values
-            crnt_x = self.robot.x()
-            crnt_y = self.robot.y()
-            crnt_v = self.robot.get_v()
-            delta_x = self.target_x - crnt_x
-            delta_y = self.target_y - crnt_y
-            delta_dist = math.sqrt(delta_x*delta_x + delta_y*delta_y)
-            target_alpha = math.degrees(math.atan2(delta_y, delta_x))
-
-            crnt_v_alpha = self.robot.get_v_alpha()
-            crnt_alpha = self.robot.get_alpha()
-            delta_alpha = math.fabs(target_alpha - crnt_alpha)
-
-            # Target is reached
-            if (delta_alpha < EPSILON_POS and
-                math.fabs(crnt_v) < EPSILON_V):
-
-                break
-
-            # This is the remaining distance travelled if the robot starts braking now
-            # EPSILON_POS is added as a buffer so he doesn't overshoot
-            threshold_dist = crnt_v*crnt_v / (2 * self.a_max) + EPSILON_POS
-
-            if delta_dist <= threshold_dist:
-                self.brake()
-            else:
-                self.accel()
-
-            threshold_alpha = crnt_v_alpha*crnt_v_alpha / (2 * self.a_alpha_max)
-
-            if delta_alpha <= threshold_alpha:
-                self.brake_alpha()
-            else:
-                self.accel_alpha(target_alpha)
-
-            self.msleep(50)
-
-
-        self.a_alpha = 0
-        self.a = 0
-        self.robot.fullStopRotation()
-        self.robot.fullStop()
-
-
-    def brake_alpha(self):
-        crnt_v_alpha = self.robot.get_v_alpha()
-        if crnt_v_alpha > EPSILON_V_ALPHA:
-            self.a_alpha = -self.a_alpha_max
-        elif crnt_v_alpha < EPSILON_V_ALPHA:
-            self.a_alpha = self.a_alpha_max
-        else:
-            self.a_alpha = 0
-
-    def accel_alpha(self, target_alpha):
-        if target_alpha > self.robot.get_alpha():
-            self.a_alpha = self.a_alpha_max
-        else:
-            self.a_alpha = -self.a_alpha_max
-
-    def brake(self):
-        crnt_v = self.robot.get_v()
-        if crnt_v > EPSILON_V:
-            self.a = -self.a_max
-        elif crnt_v < EPSILON_V:
-            self.a = self.a_max
-        else:
-            self.a = 0
-
-    def accel(self):
-        self.a = self.a_max
