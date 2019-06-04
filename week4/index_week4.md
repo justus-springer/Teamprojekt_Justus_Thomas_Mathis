@@ -5,7 +5,7 @@
 
 ## Kollision und Verfolgen
 
-### Controller
+
 
 aimAt lässt den Roboter ein bestimmtes Ziel anpeilen:
 
@@ -48,6 +48,7 @@ def aimAt(self, target_x, target_y):
 
 ```
 
+### Controller
 
 Dieser Code steuert das Verhalten des Verfolger-Robot:
 
@@ -108,6 +109,8 @@ class runController(Controller):
             self.msleep(100)
 
 ```
+
+### Kollision
 
 In diesem Codeabschnitt wird die Kollision mit Wänden implementiert:
 
