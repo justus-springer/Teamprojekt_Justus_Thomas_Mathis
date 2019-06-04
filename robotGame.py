@@ -43,7 +43,9 @@ class RobotGame(QWidget):
         self.mudTexture = QPixmap('textures/mud.png')
 
         # Load level data from file
-        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
+        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt', True)
+        print(len(self.obstacles))
+
         self.initUI()
 
         # Initialize timer
