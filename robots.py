@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtGui import QPainter, QVector2D, QColor
-from PyQt5.QtCore import Qt, QObject, pyqtSignal
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRectF, QPointF
 import math
 import random
 
@@ -57,11 +57,11 @@ class BaseRobot(QObject):
         qp.drawLine(self.x(), self.y(), self.x() + end_x, self.y() + end_y)
 
 
-    def update(self, deltaTime, robotList):
+    def update(self, deltaTime, obstacles, robotList):
 
         # Fetch acceleration values from your thread
         self.a, self.a_alpha = self.controller.fetchValues()
-        
+
         # But not too much
         self.a = min(self.a, self.a_max)
         self.a = max(self.a, -self.a_max)
@@ -77,6 +77,8 @@ class BaseRobot(QObject):
         self.v_alpha = min(self.v_alpha, self.v_alpha_max)
         self.v_alpha = max(self.v_alpha, -self.v_alpha_max)
 
+        self.collideWithWalls(obstacles)
+
         # Compute direction vector (normalized)
         direction = QVector2D(math.cos(math.radians(self.alpha)),
                               math.sin(math.radians(self.alpha)))
@@ -90,6 +92,38 @@ class BaseRobot(QObject):
         self.robotInfoSignal.emit(self.x(), self.y(), self.alpha, self.v, self.v_alpha)
 
         self.collideWithRobots(robotList)
+
+    def collideWithWalls(self, obstacles):
+
+        for rect in obstacles:
+            rect_center = QVector2D(rect.center())
+            vec = self.pos - rect_center
+            length = vec.length()
+            # scale the vector so it has length l-r
+            vec *= (length-self.r) / length
+            # This is the point of the robot which is closest to the rectangle
+            point = (rect_center + vec).toPointF()
+            if rect.contains(point):
+                if self.x() >= rect_center.x() and self.y() >= rect_center.y():
+                    corner = rect.bottomRight()
+                elif self.x() >= rect_center.x() and self.y() <= rect_center.y():
+                    corner = rect.topRight()
+                elif self.x() <= rect_center.x() and self.y() >= rect_center.y():
+                    corner = rect.bottomLeft()
+                elif self.x() <= rect_center.x() and self.y() <= rect_center.y():
+                    corner = rect.topLeft()
+
+                overlap = corner - point
+
+                if math.fabs(overlap.x()) > math.fabs(overlap.y()):
+                    self.translate(0, overlap.y())
+                else:
+                    self.translate(overlap.x(), 0)
+
+                # Set speed to zero (almost)
+                self.v = EPSILON_V
+
+
 
     def collideWithRobots(self, robotList):
 
@@ -111,7 +145,6 @@ class BaseRobot(QObject):
             returns True if the operation was succesfull
         """
 
-        print('full stop, robot: {0}'.format(self.id))
         if math.fabs(self.v) < EPSILON_V:
             self.v = 0
             return True
@@ -135,13 +168,25 @@ class BaseRobot(QObject):
 
     controller = property(getController, setController)
 
-    @property
-    def x(self):
+    def get_x(self):
         return self.pos.x
 
-    @property
-    def y(self):
+    def set_x(self, x):
+        self.pos.setX(x)
+
+    x = property(get_x, set_x)
+
+    def get_y(self):
         return self.pos.y
+
+    def set_y(self, y):
+        self.pos.setY(y)
+
+    y = property(get_y, set_y)
+
+    def translate(self, x, y):
+        self.pos.setX(self.pos.x() + x)
+        self.pos.setY(self.pos.y() + y)
 
     @property
     def id(self):

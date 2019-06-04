@@ -1,6 +1,9 @@
+from PyQt5.QtCore import QRectF
+
 class LevelLoader:
 
     LEVEL_SIZE = 100
+    TILE_SIZE = 10
 
     FLOOR_TILE = 0
     WALL_TILE = 1
@@ -10,7 +13,8 @@ class LevelLoader:
     # A '0' represents free space, a '1' represents a wall
     @staticmethod
     def loadLevel(filePath):
-        result = []
+        levelMatrix = []
+        obstacles = []
 
         f = open(filePath, "r")
         for i in range(LevelLoader.LEVEL_SIZE):
@@ -27,6 +31,12 @@ class LevelLoader:
                     pass
                 else:
                     raise Exception('Unknown symbol: "' + c + '" in level "' + filePath + '"')
-            result.append(row)
+            levelMatrix.append(row)
 
-        return result
+        for row in range(LevelLoader.LEVEL_SIZE):
+            for column in range(LevelLoader.LEVEL_SIZE):
+                if levelMatrix[row][column] == 1:
+                    obstacles.append(QRectF(column * LevelLoader.TILE_SIZE, row * LevelLoader.TILE_SIZE,
+                                            LevelLoader.TILE_SIZE, LevelLoader.TILE_SIZE))
+
+        return levelMatrix, obstacles

@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
 from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D
-from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF
 import numpy as np
 import math
 
@@ -43,7 +43,7 @@ class RobotGame(QWidget):
         self.mudTexture = QPixmap('textures/mud.png')
 
         # Load level data from file
-        self.levelMatrix = LevelLoader.loadLevel('level1.txt')
+        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
         self.initUI()
 
         # Initialize timer
@@ -69,7 +69,7 @@ class RobotGame(QWidget):
         for robot in self.robots:
             # Start the controller threads
             robot.controller.start()
-            
+
             # connect signals (hook up the controller to the robot)
             robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
             robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
@@ -128,7 +128,7 @@ class RobotGame(QWidget):
 
         # Update robots
         for robot in self.robots:
-            robot.update(deltaTime, self.robots)
+            robot.update(deltaTime, self.obstacles, self.robots)
 
         # send positions data every 10th tick
         if self.tickCounter % 10 == 0:

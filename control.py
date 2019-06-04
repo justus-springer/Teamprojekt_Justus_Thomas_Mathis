@@ -52,7 +52,7 @@ class Controller(QThread):
             self.fullStopRotationSignal.emit()
         else:
 
-            stopping_distance = self.crnt_v_alpha*self.crnt_v_alpha / (2 * self.a_alpha_max) + robots.EPSILON_ALPHA
+            stopping_distance = self.crnt_v_alpha*self.crnt_v_alpha / (2 * self.a_alpha_max) + robots.EPSILON_POS
 
             if delta_alpha <= stopping_distance:
                 # In this case, brake
@@ -81,7 +81,7 @@ class Controller(QThread):
             self.a = 0
             self.fullStopSignal.emit()
         else:
-            stopping_distance = self.crnt_v*self.crnt_v / (2 * self.a_max) + robots.EPSILON_POS
+            stopping_distance = self.crnt_v*self.crnt_v / (2 * self.a_max) + robots.EPSILON_ALPHA
 
             if delta_dist <= stopping_distance:
                 self.a = -self.a_max
@@ -148,50 +148,6 @@ class FollowController(Controller):
             self.aimAt(self.target_x, self.target_y)
 
             self.msleep(100)
-
-
-class BackAndForthController(Controller):
-
-    def run(self):
-
-        self.a = self.a_max
-
-        while True:
-            if self.crnt_x >= 700:
-                self.a = -self.a_max
-            elif self.crnt_y <= 300:
-                self.a = self.a_max
-
-            self.msleep(100)
-
-
-class CircleController(Controller):
-
-    def run(self):
-
-        self.a = self.a_max
-        self.a_alpha = self.a_alpha_max
-        self.msleep(500)
-        self.a_alpha = 0
-
-
-class CurveController(Controller):
-
-    def run(self):
-
-        self.a = self.a_max
-        self.msleep(700)
-        self.a = 0
-
-        while True:
-            if self.crnt_alpha >= 0:
-                self.a_alpha = -self.a_alpha_max/8
-
-            elif self.crnt_alpha <= -10:
-                self.a_alpha = self.a_alpha_max/8
-
-            self.msleep(100)
-
 
 class RandomController(Controller):
 
