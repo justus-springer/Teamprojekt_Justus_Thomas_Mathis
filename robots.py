@@ -1,6 +1,10 @@
 import sys
 from PyQt5.QtGui import QPainter, QVector2D, QColor
+<<<<<<< HEAD
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRectF, QPointF
+=======
+from PyQt5.QtCore import Qt, QObject, pyqtSignal
+>>>>>>> run-away
 import math
 import random
 
@@ -61,7 +65,11 @@ class BaseRobot(QObject):
 
         # Fetch acceleration values from your thread
         self.a, self.a_alpha = self.controller.fetchValues()
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> run-away
         # But not too much
         self.a = min(self.a, self.a_max)
         self.a = max(self.a, -self.a_max)
@@ -145,6 +153,7 @@ class BaseRobot(QObject):
             returns True if the operation was succesfull
         """
 
+        print('full stop, robot: {0}'.format(self.id))
         if math.fabs(self.v) < EPSILON_V:
             self.v = 0
             return True
@@ -179,6 +188,7 @@ class BaseRobot(QObject):
     def get_y(self):
         return self.pos.y
 
+<<<<<<< HEAD
     def set_y(self, y):
         self.pos.setY(y)
 
@@ -188,6 +198,8 @@ class BaseRobot(QObject):
         self.pos.setX(self.pos.x() + x)
         self.pos.setY(self.pos.y() + y)
 
+=======
+>>>>>>> run-away
     @property
     def id(self):
         return self._id

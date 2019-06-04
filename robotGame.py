@@ -1,7 +1,11 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
 from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D
+<<<<<<< HEAD
 from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF
+=======
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal
+>>>>>>> run-away
 import numpy as np
 import math
 
@@ -51,6 +55,7 @@ class RobotGame(QWidget):
         self.gameTimer.start(TICK_INTERVALL, self)
 
         # Initialize robots
+<<<<<<< HEAD
         robot1 = robots.BaseRobot(1, 500, 500, 30, 0, Qt.GlobalColor.yellow)
         robot2 = robots.BaseRobot(2, 500, 700, 30, 0, Qt.GlobalColor.cyan)
         robot3 = robots.BaseRobot(3, 300, 300, 30, 0, Qt.GlobalColor.red)
@@ -70,6 +75,32 @@ class RobotGame(QWidget):
             # Start the controller threads
             robot.controller.start()
 
+=======
+        robot1 = robots.BaseRobot(1, 100, 100, 30, 0, Qt.GlobalColor.yellow)
+        robot2 = robots.BaseRobot(2, 300, 300, 30, 0, Qt.GlobalColor.cyan)
+        robot3 = robots.BaseRobot(3, 200, 200, 30, 0, Qt.GlobalColor.red)
+        robot4 = robots.BaseRobot(4, 600, 600, 30, 0, Qt.GlobalColor.green)
+
+
+        self.robots = [robot1, robot2, robot3, robot4]
+
+        # Initialize controllers
+        randomController = control.RandomController(1, 0.5)
+        followController = control.FollowController(2, 4)
+        targetController = control.TargetController(3)
+        runController = control.runController(4, 2)
+        self.setTargetSignal.connect(targetController.setTarget)
+
+        robot1.controller = randomController
+        robot2.controller = followController
+        robot3.controller = targetController
+        robot4.controller = runController
+
+        for robot in self.robots:
+            # Start the controller threads
+            robot.controller.start()
+            
+>>>>>>> run-away
             # connect signals (hook up the controller to the robot)
             robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
             robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
@@ -128,7 +159,11 @@ class RobotGame(QWidget):
 
         # Update robots
         for robot in self.robots:
+<<<<<<< HEAD
             robot.update(deltaTime, self.obstacles, self.robots)
+=======
+            robot.update(deltaTime, self.robots)
+>>>>>>> run-away
 
         # send positions data every 10th tick
         if self.tickCounter % 10 == 0:
