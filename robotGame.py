@@ -40,12 +40,10 @@ class RobotGame(QWidget):
         #initialize textures
         self.wallTexture = QPixmap('textures/wall.png')
         self.grassTexture = QPixmap('textures/grass.png')
-        self.mudTexture = QPixmap('textures/mud.png')
+        self.sandTexture = QPixmap('textures/sand.png')
 
         # Load level data from file
-        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt', True)
-        print(len(self.obstacles))
-
+        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
         self.initUI()
 
         # Initialize timer
@@ -115,8 +113,8 @@ class RobotGame(QWidget):
                     texture = self.wallTexture
                 elif(self.levelMatrix[row][column] == LevelLoader.FLOOR_TILE):
                     texture = self.grassTexture
-                elif(self.levelMatrix[row][column] == LevelLoader.MUD_TILE):
-                    texture = self.mudTexture
+                elif(self.levelMatrix[row][column] == LevelLoader.SAND_TILE):
+                    texture = self.sandTexture
 
                 qp.drawPixmap(column*TILE_SIZE,
                             row*TILE_SIZE,
@@ -147,7 +145,7 @@ class RobotGame(QWidget):
 
         self.previous = elapsed
 
-    def mousePressEvent(self, event):
+    def mouseMoveEvent(self, event):
 
         self.setTargetSignal.emit(event.x(), event.y())
 
