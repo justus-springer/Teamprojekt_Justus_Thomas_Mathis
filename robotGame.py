@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D
+from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush
 from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF
 import numpy as np
 import math
@@ -9,6 +9,7 @@ from levelLoader import LevelLoader
 import robots
 import control
 
+DEBUG_LINES = True
 
 #Window options
 
@@ -33,8 +34,6 @@ class RobotGame(QWidget):
 
     setTargetSignal = pyqtSignal(float, float)
 
-    positionsDataSignal = pyqtSignal(dict)
-
     def __init__(self):
         super().__init__()
         #initialize textures
@@ -52,11 +51,11 @@ class RobotGame(QWidget):
 
         # Initialize robots
 
-        robot1 = robots.BaseRobot(1, 300, 300, 30, 0, Qt.GlobalColor.cyan)
-        robot2 = robots.BaseRobot(2, 500, 500, 30, 0, Qt.GlobalColor.red)
-        robot3 = robots.BaseRobot(3, 700, 700, 30, 0, Qt.GlobalColor.yellow)
+        robot1 = robots.BaseRobot(1, 900, 900, 30, 30, 0, Qt.GlobalColor.cyan)
+        robot2 = robots.BaseRobot(2, 500, 500, 30, 30, 0, Qt.GlobalColor.red)
+        robot3 = robots.BaseRobot(3, 700, 700, 30, 30, 0, Qt.GlobalColor.yellow)
 
-        self.robots = [robot1, robot2, robot3]
+        self.robots = {1 : robot1, 2 : robot2, 3 : robot3}
 
         # Initialize controllers
         followController = control.FollowController(1, 2)
@@ -68,14 +67,15 @@ class RobotGame(QWidget):
         robot3.controller = runController
         self.setTargetSignal.connect(targetController.setTarget)
 
-        for robot in self.robots:
+        for robot in self.robots.values():
 
             # connect signals (hook up the controller to the robot)
             robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
             robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
             robot.controller.fullStopSignal.connect(robot.fullStop)
             robot.controller.fullStopRotationSignal.connect(robot.fullStopRotation)
-            self.positionsDataSignal.connect(robot.controller.receiveRobotPositions)
+            robot.robotsInViewSignal.connect(robot.controller.receiveRobotsInView)
+            robot.wallsInViewSignal.connect(robot.controller.receiveWallsInView)
 
             # Tell the controller the specs of the robot (a_max and a_alpha_max)
             robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max)
@@ -101,8 +101,14 @@ class RobotGame(QWidget):
         qp = QPainter()
         qp.begin(self)
         self.drawTiles(event, qp)
-        for robot in self.robots:
+        for robot in self.robots.values():
             robot.draw(qp)
+
+        if DEBUG_LINES:
+            self.drawObstaclesDebugLines(qp)
+            for robot in self.robots.values():
+                robot.drawDebugLines(qp)
+
         qp.end()
 
     def drawTiles(self, event, qp):
@@ -117,9 +123,13 @@ class RobotGame(QWidget):
                 elif(self.levelMatrix[row][column] == LevelLoader.SAND_TILE):
                     texture = self.sandTexture
 
-                qp.drawPixmap(column*TILE_SIZE,
-                            row*TILE_SIZE,
-                            texture)
+                qp.drawPixmap(column*TILE_SIZE, row*TILE_SIZE, texture)
+
+    def drawObstaclesDebugLines(self, qp):
+        qp.setPen(Qt.blue)
+        qp.setBrush(QBrush(Qt.NoBrush))
+        for rect in self.obstacles:
+            qp.drawRect(rect)
 
     def timerEvent(self, event):
 
@@ -130,16 +140,22 @@ class RobotGame(QWidget):
         deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
 
         # Update robots
-        for robot in self.robots:
-
-            robot.update(deltaTime, self.obstacles, self.robots)
+        for robot in self.robots.values():
+            robot.update(deltaTime, self.obstacles, self.robots.values())
 
         # send positions data every 10th tick
         if self.tickCounter % 10 == 0:
-            positionsData = {}
-            for robot in self.robots:
-                positionsData[robot.id] = {'x' : robot.x, 'y' : robot.y}
-            self.positionsDataSignal.emit(positionsData)
+            allRobotInfos = {}
+            for other in self.robots.values():
+                allRobotInfos[other.id] = {'x' : other.x, 'y' : other.y}
+
+            for robot in self.robots.values():
+                cone = robot.view_cone_path()
+                robotsInView = {id : info for id,info in allRobotInfos.items()
+                                          if self.robots[id].shape().intersects(cone)}
+
+                robot.robotsInViewSignal.emit(robotsInView)
+
 
         # Update visuals
         self.update()

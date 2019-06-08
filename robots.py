@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtGui import QPainter, QVector2D, QColor
+from PyQt5.QtGui import QPainter, QVector2D, QColor, QPainterPath, QPolygonF, QBrush
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRectF, QPointF
 import math
 import random
@@ -25,12 +25,17 @@ class BaseRobot(QObject):
     # This will be emittet every tick to tell the controller current values of x, y, alpha, v, v_alpha
     robotInfoSignal = pyqtSignal(float, float, float, float, float)
 
-    def __init__(self, id, x, y, r = 30, alpha = 0, color = QColor(255,255,255)):
+    # This will be emitted every 10th tick
+    robotsInViewSignal = pyqtSignal(dict)
+    wallsInViewSignal = pyqtSignal(list)
+
+    def __init__(self, id, x, y, aov, r = 30, alpha = 0, color = QColor(255,255,255)):
 
         super().__init__()
 
         self.id = id
         self.pos = QVector2D(x, y)
+        self.aov = aov
         self.r = r
         self.alpha = alpha # unit: degrees
         self.color = color
@@ -46,6 +51,7 @@ class BaseRobot(QObject):
         self.v_alpha_max = 360 # unit: degrees/second
 
     def draw(self, qp):
+
         qp.setBrush(self.color)
         qp.setPen(Qt.black)
         qp.drawEllipse(self.boundingRect())
@@ -54,25 +60,25 @@ class BaseRobot(QObject):
 
         qp.drawLine(self.x, self.y, self.x + vec.x(), self.y + vec.y())
 
+    def drawDebugLines(self, qp):
+        qp.setBrush(QBrush(Qt.NoBrush))
+        qp.setPen(Qt.red)
+        qp.drawConvexPolygon(self.view_cone())
 
     def update(self, deltaTime, obstacles, robotList):
 
         # Fetch acceleration values from your thread
         self.a, self.a_alpha = self.controller.fetchValues()
         # But not too much
-        self.a = min(self.a, self.a_max)
-        self.a = max(self.a, -self.a_max)
-        self.a_alpha = min(self.a_alpha, self.a_alpha_max)
-        self.a_alpha = max(self.a_alpha, -self.a_alpha_max)
+        self.a = self.minmax(self.a, -self.a_max, self.a_max)
+        self.a_alpha = self.minmax(self.a_alpha, -self.a_alpha_max, self.a_alpha_max)
 
         # Apply acceleration
         self.v += self.a * deltaTime
         self.v_alpha += self.a_alpha * deltaTime
         # But not too much
-        self.v = min(self.v, self.v_max)
-        self.v = max(self.v, -self.v_max)
-        self.v_alpha = min(self.v_alpha, self.v_alpha_max)
-        self.v_alpha = max(self.v_alpha, -self.v_alpha_max)
+        self.v = self.minmax(self.v, -self.v_max, self.v_max)
+        self.v_alpha = self.minmax(self.v_alpha, -self.v_alpha_max, self.v_alpha_max)
 
         self.collideWithWalls(obstacles)
 
@@ -89,6 +95,7 @@ class BaseRobot(QObject):
     def collideWithWalls(self, obstacles):
 
         for rect in obstacles:
+
             rect_center = QVector2D(rect.center())
             vec = self.pos - rect_center
             length = vec.length()
@@ -96,6 +103,7 @@ class BaseRobot(QObject):
             vec *= (length-self.r) / length
             # This is the point of the robot which is closest to the rectangle
             point = (rect_center + vec).toPointF()
+
             if rect.contains(point):
                 if self.x >= rect_center.x() and self.y >= rect_center.y():
                     corner = rect.bottomRight()
@@ -108,7 +116,7 @@ class BaseRobot(QObject):
 
                 overlap = corner - point
 
-                if math.fabs(overlap.x()) > math.fabs(overlap.y()):
+                if abs(overlap.x()) > abs(overlap.y()):
                     self.translate(0, overlap.y())
                 else:
                     self.translate(overlap.x(), 0)
@@ -130,14 +138,13 @@ class BaseRobot(QObject):
                     self.pos += overlap / 2 * direction
                     robot.pos = robot.pos - overlap / 2 * direction
 
-
     def fullStop(self):
         """ This is a special operation to fully top the robot, i.e. set v to zero.
             It can only be called, if v is reasonably small, i.e. if |v| < EPSILON_V
             returns True if the operation was succesfull
         """
 
-        if math.fabs(self.v) < EPSILON_V:
+        if abs(self.v) < EPSILON_V:
             self.v = 0
             return True
         else:
@@ -146,12 +153,11 @@ class BaseRobot(QObject):
     def fullStopRotation(self):
         """ see above
         """
-        if math.fabs(self.v_alpha) < EPSILON_V_ALPHA:
+        if abs(self.v_alpha) < EPSILON_V_ALPHA:
             self.v_alpha = 0
             return True
         else:
             return False
-
 
     def direction(self):
         return QVector2D(math.cos(self.alpha_radians), math.sin(self.alpha_radians))
@@ -159,8 +165,28 @@ class BaseRobot(QObject):
     def boundingRect(self):
         return QRectF(self.x - self.r, self.y - self.r, 2*self.r, 2*self.r)
 
+    def shape(self):
+        shape = QPainterPath()
+        shape.addEllipse(self.boundingRect())
+        return shape
+
+    def view_cone(self):
+        a = self.pos.toPointF()
+        b = a + QPointF(5000 * math.cos(math.radians(self.alpha + self.aov)),
+                    5000 * math.sin(math.radians(self.alpha + self.aov)))
+        c = a + QPointF(5000 * math.cos(math.radians(self.alpha - self.aov)),
+                    5000 * math.sin(math.radians(self.alpha - self.aov)))
+        return QPolygonF([a, b, c])
+
+    def view_cone_path(self):
+        path = QPainterPath()
+        path.addPolygon(self.view_cone())
+        return path
+
     def translate(self, x, y):
         self.pos += QVector2D(x, y)
+
+    ### properties
 
     def get_alpha_radians(self):
         return math.radians(self.alpha)
@@ -193,3 +219,7 @@ class BaseRobot(QObject):
         self.pos.setY(new_y)
 
     y = property(get_y, set_y)
+
+    @staticmethod
+    def minmax(value, low, high):
+        return max(min(value, high), low)
