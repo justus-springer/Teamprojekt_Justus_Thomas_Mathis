@@ -69,8 +69,6 @@ class RobotGame(QWidget):
         self.setTargetSignal.connect(targetController.setTarget)
 
         for robot in self.robots:
-            # Start the controller threads
-            robot.controller.start()
 
             # connect signals (hook up the controller to the robot)
             robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
@@ -80,7 +78,10 @@ class RobotGame(QWidget):
             self.positionsDataSignal.connect(robot.controller.receiveRobotPositions)
 
             # Tell the controller the specs of the robot (a_max and a_alpha_max)
-            robot.robotSpecsSignal.emit(robot.get_a_max(), robot.get_a_alpha_max())
+            robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max)
+
+            # Start the controller threads
+            robot.controller.start()
 
         # For deltaTime
         self.elapsedTimer = QElapsedTimer()
@@ -137,7 +138,7 @@ class RobotGame(QWidget):
         if self.tickCounter % 10 == 0:
             positionsData = {}
             for robot in self.robots:
-                positionsData[robot.id] = {'x' : robot.x(), 'y' : robot.y()}
+                positionsData[robot.id] = {'x' : robot.x, 'y' : robot.y}
             self.positionsDataSignal.emit(positionsData)
 
         # Update visuals
