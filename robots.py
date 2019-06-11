@@ -145,12 +145,16 @@ class BaseRobot(QObject):
         x_max = int((self.x + self.r+10 +1)//10)
         y_min = int((self.y - self.r-10)//10)
         y_max = int((self.y + self.r+10 +1)//10)
+        checkLimits(x_min,x_max,y_min,y_max,levelMatrix)
         obstacles =[]
         for y in range(y_min,y_max):
             for x in range (x_min,x_max):
                 if levelMatrix[y][x] == 1:
                     obstacles.append(QRectF(x*10,y*10,10,10))
         return obstacles
+
+
+
 
     def fullStop(self):
         """ This is a special operation to fully top the robot, i.e. set v to zero.
@@ -237,3 +241,14 @@ class BaseRobot(QObject):
     @staticmethod
     def minmax(value, low, high):
         return max(min(value, high), low)
+
+#helperfunctions
+def checkLimits(x_min,x_max,y_min,y_max,levelMatrix):
+    if x_min < 0:
+        x_min = 0
+    if y_min < 0:
+        y_min =0
+    if x_max > len(levelMatrix):
+        x_max = len(levelMatrix)
+    if y_max > len(levelMatrix):
+        y_max = len(levelMatrix)
