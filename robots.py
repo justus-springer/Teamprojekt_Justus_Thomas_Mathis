@@ -138,6 +138,20 @@ class BaseRobot(QObject):
                     self.pos += overlap / 2 * direction
                     robot.pos = robot.pos - overlap / 2 * direction
 
+
+    def collisionRadar(self,levelMatrix):
+        #Calculate Limits
+        x_min = int((self.x - self.r-10)//10)
+        x_max = int((self.x + self.r+10 +1)//10)
+        y_min = int((self.y - self.r-10)//10)
+        y_max = int((self.y + self.r+10 +1)//10)
+        obstacles =[]
+        for y in range(y_min,y_max):
+            for x in range (x_min,x_max):
+                if levelMatrix[y][x] == 1:
+                    obstacles.append(QRectF(x*10,y*10,10,10))
+        return obstacles
+
     def fullStop(self):
         """ This is a special operation to fully top the robot, i.e. set v to zero.
             It can only be called, if v is reasonably small, i.e. if |v| < EPSILON_V
