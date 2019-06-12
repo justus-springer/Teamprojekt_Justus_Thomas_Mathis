@@ -17,6 +17,9 @@ EPSILON_POS = 10
 A_MAX = 100
 A_ALPHA_MAX = 360
 
+#Collision properties
+COLL_BUFFER = 10
+
 class BaseRobot(QObject):
 
     # This will be emittet once at the beginning of the game to tell the controller the values a_max and a_alpha_max
@@ -141,16 +144,19 @@ class BaseRobot(QObject):
 
     def collisionRadar(self,levelMatrix):
         #Calculate Limits
-        x_min = int((self.x - self.r-10)//10)
-        x_max = int((self.x + self.r+10 +1)//10)
-        y_min = int((self.y - self.r-10)//10)
-        y_max = int((self.y + self.r+10 +1)//10)
-        checkLimits(x_min,x_max,y_min,y_max,levelMatrix)
+
+        x_min = self.minmax(int((self.x - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
+        x_max = self.minmax(int((self.x + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
+        y_min = self.minmax(int((self.y - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
+        y_max = self.minmax(int((self.y + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
+
+        #Fill obstacle list
         obstacles =[]
         for y in range(y_min,y_max):
             for x in range (x_min,x_max):
                 if levelMatrix[y][x] == 1:
                     obstacles.append(QRectF(x*10,y*10,10,10))
+
         return obstacles
 
 
@@ -242,13 +248,3 @@ class BaseRobot(QObject):
     def minmax(value, low, high):
         return max(min(value, high), low)
 
-#helperfunctions
-def checkLimits(x_min,x_max,y_min,y_max,levelMatrix):
-    if x_min < 0:
-        x_min = 0
-    if y_min < 0:
-        y_min =0
-    if x_max > len(levelMatrix):
-        x_max = len(levelMatrix)
-    if y_max > len(levelMatrix):
-        y_max = len(levelMatrix)
