@@ -141,7 +141,7 @@ class RobotGame(QWidget):
 
         # Update robots
         for robot in self.robots.values():
-            robot.update(deltaTime, self.obstacles, self.robots.values())
+            robot.update(deltaTime, robot.collisionRadar(self.levelMatrix), self.robots.values())
 
         # send positions data every 10th tick
         if self.tickCounter % 10 == 0:
