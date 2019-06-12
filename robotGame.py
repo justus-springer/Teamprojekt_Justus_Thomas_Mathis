@@ -145,22 +145,35 @@ class RobotGame(QWidget):
 
         # send positions data every 10th tick
         if self.tickCounter % 10 == 0:
-            allRobotInfos = {}
-            for other in self.robots.values():
-                allRobotInfos[other.id] = {'x' : other.x, 'y' : other.y}
-
             for robot in self.robots.values():
-                cone = robot.view_cone_path()
-                robotsInView = {id : info for id,info in allRobotInfos.items()
-                                          if self.robots[id].shape().intersects(cone)}
-
-                robot.robotsInViewSignal.emit(robotsInView)
+                self.emitRobotSensorData(robot)
 
 
         # Update visuals
         self.update()
 
         self.previous = elapsed
+
+
+    def emitRobotSensorData(self, robot):
+        cone = robot.view_cone_path()
+        robotsInView = {}
+        wallsInView = {}
+        # ids of all robots that are in view
+        ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
+
+        for id in ids:
+            other = self.robots[id]
+            dist = (robot.pos - other.pos).length()
+            angle = math.degrees(math.atan2(other.y - robot.y, other.x - robot.x))
+            robotsInView[id] = {'x' : other.x, 'y' : other.y, 'dist' : dist, 'angle' : angle}
+
+        robot.robotsInViewSignal.emit(robotsInView)
+
+        walls = [rect for rect in self.obstacles if cone.intersects(rect)]
+
+        robot.wallsInViewSignal.emit(walls)
+
 
     def mouseMoveEvent(self, event):
 

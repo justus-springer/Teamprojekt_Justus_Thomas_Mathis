@@ -23,6 +23,7 @@ class Controller(QThread):
         self.a_max = 0
         self.a_alpha_max = 0
         self.robotsInView = {}
+        self.wallsInView = {}
 
         # These will be fetched by the main program
         self.a = 0
@@ -127,7 +128,6 @@ class TargetController(Controller):
 
         while True:
             self.moveTo(self.target_x, self.target_y)
-            print('red robot currently sees: {0}'.format(list(self.robotsInView.keys())))
             self.msleep(100)
 
 
@@ -150,7 +150,6 @@ class FollowController(Controller):
                 self.target_y = self.robotsInView[self.targetId]['y']
 
             self.aimAt(self.target_x, self.target_y)
-            print('cyan robot currently sees: {0}'.format(list(self.robotsInView.keys())))
             self.msleep(100)
 
 class runController(Controller):
