@@ -17,6 +17,9 @@ EPSILON_POS = 10
 A_MAX = 100
 A_ALPHA_MAX = 360
 
+#Collision properties
+COLL_BUFFER = 10
+
 class BaseRobot(QObject):
 
     # This will be emittet once at the beginning of the game to tell the controller the values a_max and a_alpha_max
@@ -138,6 +141,27 @@ class BaseRobot(QObject):
                     self.pos += overlap / 2 * direction
                     robot.pos = robot.pos - overlap / 2 * direction
 
+
+    def collisionRadar(self,levelMatrix):
+        #Calculate Limits
+
+        x_min = self.minmax(int((self.x - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
+        x_max = self.minmax(int((self.x + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
+        y_min = self.minmax(int((self.y - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
+        y_max = self.minmax(int((self.y + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
+
+        #Fill obstacle list
+        obstacles =[]
+        for y in range(y_min,y_max):
+            for x in range (x_min,x_max):
+                if levelMatrix[y][x] == 1:
+                    obstacles.append(QRectF(x*10,y*10,10,10))
+
+        return obstacles
+
+
+
+
     def fullStop(self):
         """ This is a special operation to fully top the robot, i.e. set v to zero.
             It can only be called, if v is reasonably small, i.e. if |v| < EPSILON_V
@@ -223,3 +247,4 @@ class BaseRobot(QObject):
     @staticmethod
     def minmax(value, low, high):
         return max(min(value, high), low)
+
