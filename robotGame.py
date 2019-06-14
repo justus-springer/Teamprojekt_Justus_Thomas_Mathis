@@ -77,9 +77,9 @@ class RobotGame(QWidget):
         self.robots = {1 : chaser1, 2 : chaser2, 3 : chaser3, 4 : runningRobot, 5 : testRobot}
 
         # Initialize controllers
-        chaser1.controller = control.FollowController(1, 4)
-        chaser2.controller = control.FollowController(2, 4)
-        chaser3.controller = control.FollowController(3, 4)
+        chaser1.controller = control.FollowController(1, 5)
+        chaser2.controller = control.FollowController(2, 5)
+        chaser3.controller = control.FollowController(3, 5)
         runningRobot.controller = control.RunController(4, 2)
         testRobot.controller = control.TargetController(5)
 

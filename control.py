@@ -167,12 +167,16 @@ class FollowController(Controller):
 
                 self.moveAtSpeed(0)
                 self.rotateAtSpeed(100)
-
+                # If you see your target, start chasing
                 if self.targetId in self.robotsInView:
                     self.lastInfo = self.robotsInView[self.targetId]
                     self.state = "Chasing"
 
             elif self.state == "Chasing":
+                
+                if self.targetId in self.robotsInView:
+                    self.lastInfo = self.robotsInView[self.targetId]
+
                 self.moveAtSpeed(self.v_max)
                 self.aimAt(self.lastInfo['x'], self.lastInfo['y'])
 
