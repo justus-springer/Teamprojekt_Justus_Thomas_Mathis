@@ -4,6 +4,8 @@ import math
 
 import robots
 
+DAEMON_SLEEP = 50
+
 class Controller(QThread):
 
     # This will be emittet whenevery the controller wants the robot to do a full stop
@@ -144,7 +146,7 @@ class TargetController(Controller):
 
         while True:
             self.moveTo(self.target_x, self.target_y)
-            self.msleep(100)
+            self.msleep(DAEMON_SLEEP)
 
 
 class FollowController(Controller):
@@ -178,7 +180,7 @@ class FollowController(Controller):
                 if current_time > self.lastInfo['timestamp'] + 2000:
                     self.state = "Searching"
 
-            self.msleep(100)
+            self.msleep(DAEMON_SLEEP)
 
 class RunController(Controller):
 
@@ -204,7 +206,7 @@ class RunController(Controller):
                 self.target_y = self.y + (self.y - self.robotsInView[self.targetId]['y'])
 
             self.aimAt(self.target_x, self.target_y)
-            self.msleep(100)
+            self.msleep(DAEMON_SLEEP)
 
 class TestController(Controller):
 
@@ -212,4 +214,4 @@ class TestController(Controller):
 
         while True:
             self.rotateAtSpeed(300)
-            self.msleep(100)
+            self.msleep(DAEMON_SLEEP)
