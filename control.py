@@ -1,4 +1,4 @@
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, QDateTime
 import random
 import math
 
@@ -90,13 +90,29 @@ class Controller(QThread):
             else:
                 self.a = self.a_max
 
+    def rotateAtSpeed(self, target_speed):
+
+        if self.v_alpha < target_speed:
+            self.a_alpha = self.a_alpha_max
+        else:
+            self.a_alpha = -self.a_alpha_max
+
+    def moveAtSpeed(self, target_speed):
+
+        if self.v < target_speed:
+            self.a = self.a_max
+        else:
+            self.a = -self.a_max
+
 
     ### Slots ###
 
     # This will be called once at the beginning of the game
-    def receiveRobotSpecs(self, a_max, a_alpha_max):
+    def receiveRobotSpecs(self, a_max, a_alpha_max, v_max, v_alpha_max):
         self.a_max = a_max
         self.a_alpha_max = a_alpha_max
+        self.v_max = v_max
+        self.v_alpha_max = v_alpha_max
 
     # This will be called every tick
     def receiveRobotInfo(self, x, y, alpha, v, v_alpha):
@@ -137,22 +153,34 @@ class FollowController(Controller):
         super().__init__(robotId)
 
         self.targetId = targetId
-        self.target_x = 0
-        self.target_y = 0
+        self.lastInfo = None
+        self.state = "Searching"
 
     def run(self):
 
         self.a = self.a_max
 
         while True:
-            if self.targetId in self.robotsInView:
-                self.target_x = self.robotsInView[self.targetId]['x']
-                self.target_y = self.robotsInView[self.targetId]['y']
+            if self.state == "Searching":
 
-            self.aimAt(self.target_x, self.target_y)
+                self.moveAtSpeed(0)
+                self.rotateAtSpeed(100)
+
+                if self.targetId in self.robotsInView:
+                    self.lastInfo = self.robotsInView[self.targetId]
+                    self.state = "Chasing"
+
+            elif self.state == "Chasing":
+                self.moveAtSpeed(self.v_max)
+                self.aimAt(self.lastInfo['x'], self.lastInfo['y'])
+
+                current_time = QDateTime.currentMSecsSinceEpoch()
+                if current_time > self.lastInfo['timestamp'] + 2000:
+                    self.state = "Searching"
+
             self.msleep(100)
 
-class runController(Controller):
+class RunController(Controller):
 
     def __init__(self, robotId, targetId):
         super().__init__(robotId)
@@ -176,4 +204,12 @@ class runController(Controller):
                 self.target_y = self.y + (self.y - self.robotsInView[self.targetId]['y'])
 
             self.aimAt(self.target_x, self.target_y)
+            self.msleep(100)
+
+class TestController(Controller):
+
+    def run(self):
+
+        while True:
+            self.rotateAtSpeed(300)
             self.msleep(100)

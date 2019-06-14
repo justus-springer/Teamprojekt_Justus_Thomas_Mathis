@@ -5,6 +5,7 @@ import math
 import random
 
 import robotGame
+from toolbox import minmax
 
 # Epsilon values represent the smallest reasonable value greater than 0
 # Any speed/distance below their epsilon value should be interpreted as practically 0
@@ -23,7 +24,7 @@ COLL_BUFFER = 10
 class BaseRobot(QObject):
 
     # This will be emittet once at the beginning of the game to tell the controller the values a_max and a_alpha_max
-    robotSpecsSignal = pyqtSignal(float, float)
+    robotSpecsSignal = pyqtSignal(float, float, float, float)
 
     # This will be emittet every tick to tell the controller current values of x, y, alpha, v, v_alpha
     robotInfoSignal = pyqtSignal(float, float, float, float, float)
@@ -73,15 +74,15 @@ class BaseRobot(QObject):
         # Fetch acceleration values from your thread
         self.a, self.a_alpha = self.controller.fetchValues()
         # But not too much
-        self.a = self.minmax(self.a, -self.a_max, self.a_max)
-        self.a_alpha = self.minmax(self.a_alpha, -self.a_alpha_max, self.a_alpha_max)
+        self.a = minmax(self.a, -self.a_max, self.a_max)
+        self.a_alpha = minmax(self.a_alpha, -self.a_alpha_max, self.a_alpha_max)
 
         # Apply acceleration
         self.v += self.a * deltaTime
         self.v_alpha += self.a_alpha * deltaTime
         # But not too much
-        self.v = self.minmax(self.v, -self.v_max, self.v_max)
-        self.v_alpha = self.minmax(self.v_alpha, -self.v_alpha_max, self.v_alpha_max)
+        self.v = minmax(self.v, -self.v_max, self.v_max)
+        self.v_alpha = minmax(self.v_alpha, -self.v_alpha_max, self.v_alpha_max)
 
         self.collideWithWalls(obstacles)
 
@@ -145,10 +146,10 @@ class BaseRobot(QObject):
     def collisionRadar(self,levelMatrix):
         #Calculate Limits
 
-        x_min = self.minmax(int((self.x - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
-        x_max = self.minmax(int((self.x + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
-        y_min = self.minmax(int((self.y - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
-        y_max = self.minmax(int((self.y + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
+        x_min = minmax(int((self.x - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
+        x_max = minmax(int((self.x + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
+        y_min = minmax(int((self.y - self.r - COLL_BUFFER) // 10),0,len(levelMatrix))
+        y_max = minmax(int((self.y + self.r + COLL_BUFFER + 1) // 10),0,len(levelMatrix))
 
         #Fill obstacle list
         obstacles =[]
@@ -158,8 +159,6 @@ class BaseRobot(QObject):
                     obstacles.append(QRectF(x*10,y*10,10,10))
 
         return obstacles
-
-
 
 
     def fullStop(self):
@@ -243,8 +242,3 @@ class BaseRobot(QObject):
         self.pos.setY(new_y)
 
     y = property(get_y, set_y)
-
-    @staticmethod
-    def minmax(value, low, high):
-        return max(min(value, high), low)
-
