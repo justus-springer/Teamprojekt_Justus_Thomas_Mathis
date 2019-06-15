@@ -1,4 +1,5 @@
 from PyQt5.QtCore import QThread, pyqtSignal, QDateTime
+from PyQt5.Qt import QVector2D
 import random
 import math
 
@@ -69,7 +70,6 @@ class Controller(QThread):
                     self.a_alpha = -self.a_alpha_max
                 else:
                     self.a_alpha = self.a_alpha_max
-
 
     def moveTo(self, target_x, target_y):
 
@@ -148,52 +148,108 @@ class TargetController(Controller):
             self.moveTo(self.target_x, self.target_y)
             self.msleep(DAEMON_SLEEP)
 
-
-class FollowController(Controller):
+class ChaseController(Controller):
 
     def __init__(self, robotId, targetId):
         super().__init__(robotId)
 
         self.targetId = targetId
-        self.lastInfo = None
+        self.lastSighting = {'x' : 500, 'y' : 500, 'pos' : QVector2D(0,0), 'dist' : 0, 'angle' : 0, 'timestamp' : 1000}
+        self.previousSighting = {'x' : 501, 'y' : 501, 'pos' : QVector2D(0,0), 'dist' : 0, 'angle' : 0, 'timestamp' : 0}
+        self.aimPos = QVector2D(500, 500)
         self.state = "Searching"
+
+    # This should be implemented by any inheriting class
+    # returns the position to aim at
+    def computeAim(self):
+        return QVector2D(500, 500) # dummy
+
+    def updateLastSighting(self):
+
+        # if the last sighting is older than 2 seconds, return to Searching
+        current_time = QDateTime.currentMSecsSinceEpoch()
+        if current_time > self.lastSighting['timestamp'] + 2000:
+            self.state = "Searching"
+
+        if self.targetId in self.robotsInView:
+            self.state = "Chasing"
+            newSighting = self.robotsInView[self.targetId]
+
+            # id this sighting is newer than the old one
+            if newSighting['timestamp'] > self.lastSighting['timestamp']:
+                self.previousSighting = self.lastSighting
+                self.lastSighting = newSighting
 
     def run(self):
 
-        self.a = self.a_max
-
         while True:
+
+            self.updateLastSighting()
+
+            self.aimPos = self.computeAim()
+
             if self.state == "Searching":
 
                 self.moveAtSpeed(0)
                 self.rotateAtSpeed(100)
-                # If you see your target, start chasing
-                if self.targetId in self.robotsInView:
-                    self.lastInfo = self.robotsInView[self.targetId]
-                    self.state = "Chasing"
 
             elif self.state == "Chasing":
-                
-                if self.targetId in self.robotsInView:
-                    self.lastInfo = self.robotsInView[self.targetId]
 
-                self.moveAtSpeed(self.v_max)
-                self.aimAt(self.lastInfo['x'], self.lastInfo['y'])
-
-                current_time = QDateTime.currentMSecsSinceEpoch()
-                if current_time > self.lastInfo['timestamp'] + 2000:
-                    self.state = "Searching"
+                self.moveTo(self.aimPos.x(), self.aimPos.y())
 
             self.msleep(DAEMON_SLEEP)
 
+
+class ChaseDirectlyController(ChaseController):
+
+    def computeAim(self):
+        return self.lastSighting['pos']
+
+class ChasePredictController(ChaseController):
+
+    def computeAim(self):
+
+        delta_vec = self.lastSighting['pos'] - self.previousSighting['pos']
+        timeDifference = (self.lastSighting['timestamp'] - self.previousSighting['timestamp']) / 1000
+        direction = delta_vec.normalized()
+        distanceTravelled = delta_vec.length()
+
+        if timeDifference != 0:
+            speed = distanceTravelled / timeDifference
+            # Compute the future position estimate in one second
+            futurePosEstimate = self.lastSighting['pos'] + 1 * speed * direction
+
+            return futurePosEstimate
+        else:
+            return QVector2D(500, 500)
+
+class ChaseFollowController(ChaseController):
+
+    def computeAim(self):
+
+        delta_vec = self.lastSighting['pos'] - self.previousSighting['pos']
+        timeDifference = (self.lastSighting['timestamp'] - self.previousSighting['timestamp']) / 1000
+        direction = delta_vec.normalized()
+        distanceTravelled = delta_vec.length()
+
+        if timeDifference != 0:
+            speed = distanceTravelled / timeDifference
+            # Compute the past position estimate of one second ago
+            futurePosEstimate = self.lastSighting['pos'] - 1 * speed * direction
+
+            return futurePosEstimate
+        else:
+            return QVector2D(500, 500)
+
+
 class RunController(Controller):
 
-    def __init__(self, robotId, targetId):
+    def __init__(self, robotId, targetIds):
         super().__init__(robotId)
 
         self.target_x = 0
         self.target_y = 0
-        self.targetId = targetId
+        self.targetIds = targetIds
 
     def run(self):
 
@@ -205,17 +261,9 @@ class RunController(Controller):
                 self.target_x = 500
                 self.target_y = 500
 
-            elif self.targetId in self.robotsInView:
-                self.target_x = self.x + (self.x - self.robotsInView[self.targetId]['x'])
-                self.target_y = self.y + (self.y - self.robotsInView[self.targetId]['y'])
+            elif self.targetIds[0] in self.robotsInView:
+                self.target_x = self.x + (self.x - self.robotsInView[self.targetIds[0]]['x'])
+                self.target_y = self.y + (self.y - self.robotsInView[self.targetIds[0]]['y'])
 
             self.aimAt(self.target_x, self.target_y)
-            self.msleep(DAEMON_SLEEP)
-
-class TestController(Controller):
-
-    def run(self):
-
-        while True:
-            self.rotateAtSpeed(300)
             self.msleep(DAEMON_SLEEP)

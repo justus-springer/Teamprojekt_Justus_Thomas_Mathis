@@ -1,10 +1,10 @@
 import sys
-from PyQt5.QtGui import QPainter, QVector2D, QColor, QPainterPath, QPolygonF, QBrush
+from PyQt5.QtGui import QPainter, QVector2D, QColor, QPainterPath, QPolygonF, QBrush, QPen, QFont
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRectF, QPointF
 import math
 import random
 
-import robotGame
+import robotGame, control
 from toolbox import minmax
 
 # Epsilon values represent the smallest reasonable value greater than 0
@@ -15,11 +15,15 @@ EPSILON_V_ALPHA = 20
 EPSILON_ALPHA = 10
 EPSILON_POS = 10
 
+# Acceleration properties
 A_MAX = 100
 A_ALPHA_MAX = 360
 
-#Collision properties
+# Collision properties
 COLL_BUFFER = 10
+
+# Drawing properties
+ID_FONT = QFont("Calibri", 20)
 
 class BaseRobot(QObject):
 
@@ -33,7 +37,7 @@ class BaseRobot(QObject):
     robotsInViewSignal = pyqtSignal(dict)
     wallsInViewSignal = pyqtSignal(list)
 
-    def __init__(self, id, x, y, aov, r = 30, alpha = 0, color = QColor(255,255,255)):
+    def __init__(self, id, x, y, aov, v_max, r = 30, alpha = 0, color = QColor(255,255,255)):
 
         super().__init__()
 
@@ -47,7 +51,7 @@ class BaseRobot(QObject):
         self.a = 0 # unit: pixels/second^2
         self.a_max = A_MAX # unit: pixels/second^2
         self.v = 0 # unit: pixels/second
-        self.v_max = 150 # unit pixels/second
+        self.v_max = v_max # unit pixels/second
 
         self.a_alpha = 0 # unit: degrees/second^2
         self.a_alpha_max = A_ALPHA_MAX # unit: degrees/second^2
@@ -63,6 +67,11 @@ class BaseRobot(QObject):
         vec = self.r * self.direction()
 
         qp.drawLine(self.x, self.y, self.x + vec.x(), self.y + vec.y())
+
+        # Draw your id
+        qp.setPen(QPen(Qt.black))
+        qp.setFont(ID_FONT)
+        qp.drawText(self.boundingRect(), Qt.AlignCenter, str(self.id))
 
     def drawDebugLines(self, qp):
         qp.setBrush(QBrush(Qt.NoBrush))
@@ -242,3 +251,57 @@ class BaseRobot(QObject):
         self.pos.setY(new_y)
 
     y = property(get_y, set_y)
+
+class ChaserRobot(BaseRobot):
+
+    scoreSignal = pyqtSignal(int)
+
+    def __init__(self, id, spawn_x, spawn_y, targetId, controllerClass):
+        super().__init__(id, spawn_x, spawn_y, 30, 150, 30, 0, Qt.gray)
+        self.spawn_x = spawn_x
+        self.spawn_y = spawn_y
+
+        self.controller = controllerClass(id, targetId)
+
+    def collideWithRobots(self, robotList):
+
+        for robot in robotList:
+            if robot != self:
+                # distance to other robot
+                distance = (self.pos - robot.pos).length()
+                direction = (self.pos - robot.pos).normalized()
+
+                if distance <= self.r + robot.r:
+                    overlap = self.r + robot.r - distance
+                    self.pos += overlap / 2 * direction
+                    robot.pos = robot.pos - overlap / 2 * direction
+
+                    # if the other robot was a runner, teleport to your spawn
+                    if isinstance(robot, RunnerRobot):
+                        self.teleportToFarthestPoint(robot.pos)
+                        self.scoreSignal.emit(self.id)
+
+    def drawDebugLines(self, qp):
+        super().drawDebugLines(qp)
+        qp.setBrush(QBrush(Qt.blue))
+        qp.setPen(Qt.blue)
+        p = self.controller.aimPos.toPointF()
+        qp.drawEllipse(p, 5, 5)
+
+    def teleportToFarthestPoint(self, robot_pos):
+        middle = QVector2D(robotGame.WINDOW_SIZE / 2, robotGame.WINDOW_SIZE / 2)
+        vec = middle - robot_pos
+        vec *= 400 / vec.length()
+        self.pos = middle + vec
+
+class RunnerRobot(BaseRobot):
+
+    def __init__(self, id, x, y, chaserIds):
+        super().__init__(id, x, y, 50, 100, 25, 0, Qt.green)
+        self.controller = control.RunController(id, chaserIds)
+
+class TestRobot(BaseRobot):
+
+    def __init__(self, id, x, y):
+        super().__init__(id, x, y, 30, 200, 30, 0, Qt.red)
+        self.controller = control.TargetController(id)

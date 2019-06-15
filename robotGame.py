@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush
-from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF, QDateTime
+from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush, QFont
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF, QDateTime, QObject
 import numpy as np
 import math
 
@@ -9,15 +9,15 @@ from levelLoader import LevelLoader
 import robots
 import control
 
-DEBUG_LINES = False
+DEBUG_LINES = True
 
 #Window options
 
-START_WINDOW_WIDTH = 1000
-START_WINDOW_HEIGHT = 1000
+WINDOW_SIZE = 1000
 START_WINDOW_X_POS = 100
 START_WINDOW_Y_POS = 50
 WINDOW_TITLE = "Cooles Spiel"
+SCOREBOARD_FONT = QFont("Calibri", 15)
 
 # Game constants
 
@@ -50,6 +50,7 @@ class RobotGame(QWidget):
         self.gameTimer = QBasicTimer()
         self.gameTimer.start(TICK_INTERVALL, self)
 
+        self.scoreBoard = ScoreBoard()
         self.initRobots()
 
         # For deltaTime
@@ -61,29 +62,21 @@ class RobotGame(QWidget):
 
     def initUI(self):
 
-        self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, START_WINDOW_WIDTH, START_WINDOW_HEIGHT)
+        self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, WINDOW_SIZE, WINDOW_SIZE)
         self.setWindowTitle(WINDOW_TITLE)
         self.show()
 
     def initRobots(self):
 
-        chaser1 = robots.BaseRobot(1, 200, 500, 30, 30, 0, Qt.gray)
-        chaser2 = robots.BaseRobot(2, 500, 200, 30, 30, 0, Qt.gray)
-        chaser3 = robots.BaseRobot(3, 800, 500, 30, 30, 0, Qt.gray)
-        runningRobot = robots.BaseRobot(4, 500, 500, 30, 20, 0, Qt.green)
+        chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseFollowController)
+        chaser2 = robots.ChaserRobot(2, 500, 200, 4, control.ChaseDirectlyController)
+        chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
+        runningRobot = robots.RunnerRobot(4, 500, 500, [1, 2, 3])
 
-        testRobot = robots.BaseRobot(5, 500, 800, 80, 30, 0, Qt.red)
-
-        self.robots = {1 : chaser1, 2 : chaser2, 3 : chaser3, 4 : runningRobot, 5 : testRobot}
-
-        # Initialize controllers
-        chaser1.controller = control.FollowController(1, 5)
-        chaser2.controller = control.FollowController(2, 5)
-        chaser3.controller = control.FollowController(3, 5)
-        runningRobot.controller = control.RunController(4, 2)
-        testRobot.controller = control.TargetController(5)
-
+        testRobot = robots.TestRobot(5, 500, 800)
         self.setTargetSignal.connect(testRobot.controller.setTarget)
+
+        self.robots = {robot.id : robot for robot in [chaser1, chaser2, chaser3, runningRobot, testRobot]}
 
         for robot in self.robots.values():
 
@@ -92,8 +85,12 @@ class RobotGame(QWidget):
             robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
             robot.controller.fullStopSignal.connect(robot.fullStop)
             robot.controller.fullStopRotationSignal.connect(robot.fullStopRotation)
-            robot.robotsInViewSignal.connect(robot.controller.receiveRobotsInView)
             robot.wallsInViewSignal.connect(robot.controller.receiveWallsInView)
+            robot.robotsInViewSignal.connect(robot.controller.receiveRobotsInView)
+
+            # connect scoreboard signals of chasers
+            if isinstance(robot, robots.ChaserRobot):
+                robot.scoreSignal.connect(self.scoreBoard.scoreSignalSlot)
 
             # Tell the controller the specs of the robot (a_max and a_alpha_max)
             robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max, robot.v_max, robot.v_alpha_max)
@@ -106,8 +103,10 @@ class RobotGame(QWidget):
         qp = QPainter()
         qp.begin(self)
         self.drawTiles(event, qp)
+        self.scoreBoard.draw(qp)
         for robot in self.robots.values():
             robot.draw(qp)
+        self.scoreBoard.draw(qp)
 
         if DEBUG_LINES:
             self.drawObstaclesDebugLines(qp)
@@ -161,18 +160,29 @@ class RobotGame(QWidget):
 
 
     def emitRobotSensorData(self, robot):
+
         cone = robot.view_cone_path()
         robotsInView = {}
         wallsInView = {}
         timestamp = QDateTime.currentMSecsSinceEpoch()
-        # ids of all robots that are in view
-        ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
+
+        # Special case for runner robot: He sees everything:
+        if isinstance(robot, robots.RunnerRobot):
+            ids = self.robots.keys()
+        else:
+            # Get ids of all robots that are in view, i.e. that intersect with the view cone
+            ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
 
         for id in ids:
             other = self.robots[id]
             dist = (robot.pos - other.pos).length()
             angle = math.degrees(math.atan2(other.y - robot.y, other.x - robot.x))
-            robotsInView[id] = {'x' : other.x, 'y' : other.y, 'dist' : dist, 'angle' : angle, 'timestamp' : timestamp}
+            robotsInView[id] = {'x' : other.x,
+                                'y' : other.y,
+                                'pos' : QVector2D(other.x, other.y),
+                                'dist' : dist,
+                                'angle' : angle,
+                                'timestamp' : timestamp}
 
         robot.robotsInViewSignal.emit(robotsInView)
 
@@ -185,6 +195,28 @@ class RobotGame(QWidget):
 
         self.setTargetSignal.emit(event.x(), event.y())
 
+class ScoreBoard(QObject):
+
+    def __init__(self):
+        super().__init__()
+        self.scores = {}
+
+    def draw(self, qp):
+
+        qp.setPen(Qt.black)
+        qp.setFont(SCOREBOARD_FONT)
+        text = "SCOREBOARD:\n"
+        for id in self.scores:
+            text += "Chaser {0}: {1}\n".format(id, self.scores[id])
+
+        qp.drawText(QRectF(0, 0, WINDOW_SIZE, 200), Qt.AlignCenter, text)
+
+    ### Slots
+    def scoreSignalSlot(self, id):
+        if id in self.scores:
+            self.scores[id] += 1
+        else:
+            self.scores[id] = 1
 
 if __name__ == '__main__':
 
