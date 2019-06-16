@@ -7,3 +7,4 @@
 - *Woche 2*: [Roboter und Spielfeld zeichnen](/week2/index_week2.md)
 - *Woche 3*: [Roboter und Threads](/week3/index_week3.md)
 - *Woche 4*: [Kollision und Verfolgen](/week4/index_week4.md)
+- *Woche 5*: [Verfolgungsjagd](/week5/index_week5.md)
