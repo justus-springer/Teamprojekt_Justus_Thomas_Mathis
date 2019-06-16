@@ -76,7 +76,7 @@ class BaseRobot(QObject):
     def drawDebugLines(self, qp):
         qp.setBrush(QBrush(Qt.NoBrush))
         qp.setPen(Qt.red)
-        qp.drawConvexPolygon(self.view_cone())
+        qp.drawPath(self.view_cone())
 
     def update(self, deltaTime, obstacles, robotList):
 
@@ -224,16 +224,14 @@ class BaseRobot(QObject):
         return shape
 
     def view_cone(self):
+        path = QPainterPath()
         a = self.pos.toPointF()
         b = a + QPointF(5000 * math.cos(math.radians(self.alpha + self.aov)),
                     5000 * math.sin(math.radians(self.alpha + self.aov)))
         c = a + QPointF(5000 * math.cos(math.radians(self.alpha - self.aov)),
                     5000 * math.sin(math.radians(self.alpha - self.aov)))
-        return QPolygonF([a, b, c])
-
-    def view_cone_path(self):
-        path = QPainterPath()
-        path.addPolygon(self.view_cone())
+        path.addPolygon(QPolygonF([a, b, c]))
+        path.closeSubpath()
         return path
 
     def translate(self, x, y):

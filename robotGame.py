@@ -161,7 +161,7 @@ class RobotGame(QWidget):
 
     def emitRobotSensorData(self, robot):
 
-        cone = robot.view_cone_path()
+        cone = robot.view_cone()
         robotsInView = {}
         wallsInView = {}
         timestamp = QDateTime.currentMSecsSinceEpoch()
