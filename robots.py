@@ -136,8 +136,8 @@ class BaseRobot(QObject):
 
                 # Set speed to zero (almost)
                 self.v = EPSILON_V
-               
-            
+
+
     def collision(self, obstacles):
 
         for rect in obstacles:
@@ -283,7 +283,7 @@ class ChaserRobot(BaseRobot):
 
         self.controller = controllerClass(id, targetId)
 
-    def collideWithRobots(self, robotList):
+    def collideWithRobots(self, robotList, obstacles):
 
         for robot in robotList:
             if robot != self:
