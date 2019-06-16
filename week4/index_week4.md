@@ -1,13 +1,13 @@
 # Woche 4: Kollision und Verfolgen
 
-### [<- Zurück](/../index.md) zur Projektübersicht
+### [<- ZurÃ¼ck](/../index.md) zur ProjektÃ¼bersicht
 ---
 
 ## Kollision und Verfolgen
 
 
 
-aimAt lässt den Roboter ein bestimmtes Ziel anpeilen:
+aimAt lÃ¤sst den Roboter ein bestimmtes Ziel anpeilen:
 
 ```python
 
@@ -112,7 +112,7 @@ class runController(Controller):
 
 ### Kollision
 
-In diesem Codeabschnitt wird die Kollision mit Wänden implementiert:
+In diesem Codeabschnitt wird die Kollision mit WÃ¤nden implementiert:
 
 ```python
 
@@ -147,7 +147,3 @@ def collideWithWalls(self, obstacles):
                 self.v = EPSILON_V
 
 ```
-
-
-
-
