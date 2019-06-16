@@ -136,8 +136,8 @@ class BaseRobot(QObject):
 
                 # Set speed to zero (almost)
                 self.v = EPSILON_V
-               
-            
+
+
     def collision(self, obstacles):
 
         for rect in obstacles:
@@ -153,6 +153,7 @@ class BaseRobot(QObject):
                 return True
 
         return False
+
     def collideWithRobots(self, robotList, obstacles):
 
         for robot in robotList:
@@ -283,7 +284,7 @@ class ChaserRobot(BaseRobot):
 
         self.controller = controllerClass(id, targetId)
 
-    def collideWithRobots(self, robotList):
+    def collideWithRobots(self, robotList, obstacles):
 
         for robot in robotList:
             if robot != self:
@@ -293,8 +294,13 @@ class ChaserRobot(BaseRobot):
 
                 if distance <= self.r + robot.r:
                     overlap = self.r + robot.r - distance
-                    self.pos += overlap / 2 * direction
-                    robot.pos = robot.pos - overlap / 2 * direction
+
+                    if self.collision(obstacles):
+                        robot.pos = robot.pos - overlap * direction
+
+                    else:
+                        self.pos += overlap / 2 * direction
+                        robot.pos = robot.pos - overlap / 2 * direction
 
                     # if the other robot was a runner, teleport to your spawn
                     if isinstance(robot, RunnerRobot):
