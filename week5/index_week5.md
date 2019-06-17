@@ -78,6 +78,7 @@ Diese Methode wird alle 10 Ticks aufgerufen. Die Signale robotsInViewSignal und 
 Zunächst haben wir einen allgemeinen ChaserController:
 
 ```python
+# abstract
 class ChaseController(Controller):
 
     def __init__(self, robotId, targetId):
@@ -89,10 +90,9 @@ class ChaseController(Controller):
         self.aimPos = QVector2D(500, 500)
         self.state = "Searching"
 
-    # This should be implemented by any inheriting class
-    # returns the position to aim at
+    # abstract
     def computeAim(self):
-        return QVector2D(500, 500) # dummy
+        raise NotImplementedError("Implement this method, stupid!")
 
     def updateLastSighting(self):
 
@@ -115,22 +115,20 @@ class ChaseController(Controller):
         while True:
 
             self.updateLastSighting()
-
             self.aimPos = self.computeAim()
 
             if self.state == "Searching":
-
                 self.moveAtSpeed(0)
                 self.rotateAtSpeed(100)
 
             elif self.state == "Chasing":
-
                 self.moveTo(self.aimPos.x(), self.aimPos.y())
 
             self.msleep(DAEMON_SLEEP)
+
 ```
 
-Der Controller "merkt" sich immer nur die zwei letzten Sichtungen seines Ziels. Sobald die letzte Sichtung über 2 Sekunden her ist, beginnt er, sich auf der Stelle zu drehen und sein Ziel neu zu suchen. Von dieser Klasse erben nun die drei Controller-Klassen: ChaseDirectlyController, ChasePredictController und ChaseFollowController, die die Methode computeAim alle unterschiedlich implementieren:
+Der Controller "merkt" sich immer nur die zwei letzten Sichtungen seines Ziels. Sobald die letzte Sichtung über 2 Sekunden her ist, beginnt er, sich auf der Stelle zu drehen und sein Ziel neu zu suchen. Von dieser Klasse erben nun die drei Controller-Klassen: ChaseDirectlyController, ChasePredictController und ChaseGuardController, die die Methode computeAim alle unterschiedlich implementieren:
 
 ```python
 
@@ -147,19 +145,24 @@ class ChasePredictController(ChaseController):
         timeDifference = (self.lastSighting['timestamp'] - self.previousSighting['timestamp']) / 1000
         direction = delta_vec.normalized()
         distanceTravelled = delta_vec.length()
+        speed = distanceTravelled / timeDifference
 
-        if timeDifference != 0:
-            speed = distanceTravelled / timeDifference
-            # Compute the future position estimate in one second
-            futurePosEstimate = self.lastSighting['pos'] + 1 * speed * direction
+        # Extrapolate the position one second into the FUTURE
+        futurePosEstimate = self.lastSighting['pos'] + 1 * speed * direction
+        return futurePosEstimate
 
-            return futurePosEstimate
-        else:
-            return QVector2D(500, 500)
+class ChaseGuardController(ChaseController):
+
+    def computeAim(self):
+        middle = QVector2D(500, 500)
+        delta_vec = middle - self.lastSighting['pos']
+        delta_vec *= 200 / delta_vec.length()
+
+        return self.lastSighting['pos'] + delta_vec
 
 ```
 
-ChaseDirectlyController hat als Ziel immer die aktuellste Position des Runners. ChasePredictController versucht, aus den zwei letzten Sichtungen die zukünftige Position des Runners zu extrapolieren. ChaseFollowController "extrapoliert" in die Vergangenheit.
+ChaseDirectlyController hat als Ziel immer die aktuellste Position des Runners. ChasePredictController versucht, aus den zwei letzten Sichtungen die zukünftige Position des Runners zu extrapolieren. ChaseGuardController versucht, dem Runner den Weg zur Mitte zu versperren.
 
 ## Runner Strategie
 
@@ -178,4 +181,74 @@ class RunController(Controller):
 
 ## Teleportieren und Scoreboard
 
-...
+Die Klasse ChaserRobot erbt von BaseRobot und hat Chaser-spezifische Funktionalitäten: Sobald der Runner berührt wird, teleportiert er sich zu dem Punkt auf der Karte, der die weiteste Distanz zum Runner aufweist.
+
+```python
+class ChaserRobot(BaseRobot):
+
+    scoreSignal = pyqtSignal(int)
+
+    def __init__(self, id, spawn_x, spawn_y, targetId, controllerClass):
+        super().__init__(id, spawn_x, spawn_y, 30, 150, 30, 0, Qt.gray)
+        self.spawn_x = spawn_x
+        self.spawn_y = spawn_y
+
+        self.controller = controllerClass(id, targetId)
+
+    def collideWithRobots(self, robotList, obstacles):
+
+        for robot in robotList:
+            if robot != self:
+                # distance to other robot
+                distance = (self.pos - robot.pos).length()
+                direction = (self.pos - robot.pos).normalized()
+
+                if distance <= self.r + robot.r:
+                    overlap = self.r + robot.r - distance
+
+                    if self.collision(obstacles):
+                        robot.pos = robot.pos - overlap * direction
+
+                    else:
+                        self.pos += overlap / 2 * direction
+                        robot.pos = robot.pos - overlap / 2 * direction
+
+                    # if the other robot was a runner, teleport to your spawn
+                    if isinstance(robot, RunnerRobot):
+                        self.teleportToFarthestPoint(robot.pos)
+                        self.scoreSignal.emit(self.id)
+
+    def teleportToFarthestPoint(self, robot_pos):
+        middle = QVector2D(robotGame.WINDOW_SIZE / 2, robotGame.WINDOW_SIZE / 2)
+        vec = middle - robot_pos
+        vec *= 400 / vec.length()
+        self.pos = middle + vec
+```
+
+Außerdem wird ein scoreSignal emittiert. Dieses ist mit einem ScoreBoard verbunden, welche für jeden Chaser die "Kills" anzeigt:
+
+
+```python
+class ScoreBoard(QObject):
+
+    def __init__(self):
+        super().__init__()
+        self.scores = {}
+
+    def draw(self, qp):
+
+        qp.setPen(Qt.black)
+        qp.setFont(SCOREBOARD_FONT)
+        text = "SCOREBOARD:\n"
+        for id in self.scores:
+            text += "Chaser {0}: {1}\n".format(id, self.scores[id])
+
+        qp.drawText(QRectF(0, 0, WINDOW_SIZE, 200), Qt.AlignCenter, text)
+
+    ### Slots
+    def scoreSignalSlot(self, id):
+        if id in self.scores:
+            self.scores[id] += 1
+        else:
+            self.scores[id] = 1
+```
