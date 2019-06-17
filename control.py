@@ -148,6 +148,7 @@ class TargetController(Controller):
             self.moveTo(self.target_x, self.target_y)
             self.msleep(DAEMON_SLEEP)
 
+# abstract
 class ChaseController(Controller):
 
     def __init__(self, robotId, targetId):
@@ -159,10 +160,9 @@ class ChaseController(Controller):
         self.aimPos = QVector2D(500, 500)
         self.state = "Searching"
 
-    # This should be implemented by any inheriting class
-    # returns the position to aim at
+    # abstract
     def computeAim(self):
-        return QVector2D(500, 500) # dummy
+        raise NotImplementedError("Implement this method, stupid!")
 
     def updateLastSighting(self):
 
@@ -185,16 +185,13 @@ class ChaseController(Controller):
         while True:
 
             self.updateLastSighting()
-
             self.aimPos = self.computeAim()
 
             if self.state == "Searching":
-
                 self.moveAtSpeed(0)
                 self.rotateAtSpeed(100)
 
             elif self.state == "Chasing":
-
                 self.moveTo(self.aimPos.x(), self.aimPos.y())
 
             self.msleep(DAEMON_SLEEP)
@@ -213,33 +210,20 @@ class ChasePredictController(ChaseController):
         timeDifference = (self.lastSighting['timestamp'] - self.previousSighting['timestamp']) / 1000
         direction = delta_vec.normalized()
         distanceTravelled = delta_vec.length()
+        speed = distanceTravelled / timeDifference
 
-        if timeDifference != 0:
-            speed = distanceTravelled / timeDifference
-            # Compute the future position estimate in one second
-            futurePosEstimate = self.lastSighting['pos'] + 1 * speed * direction
+        # Extrapolate the position one second into the FUTURE
+        futurePosEstimate = self.lastSighting['pos'] + 1 * speed * direction
+        return futurePosEstimate
 
-            return futurePosEstimate
-        else:
-            return QVector2D(500, 500)
-
-class ChaseFollowController(ChaseController):
+class ChaseGuardController(ChaseController):
 
     def computeAim(self):
+        middle = QVector2D(500, 500)
+        delta_vec = middle - self.lastSighting['pos']
+        delta_vec *= 200 / delta_vec.length()
 
-        delta_vec = self.lastSighting['pos'] - self.previousSighting['pos']
-        timeDifference = (self.lastSighting['timestamp'] - self.previousSighting['timestamp']) / 1000
-        direction = delta_vec.normalized()
-        distanceTravelled = delta_vec.length()
-
-        if timeDifference != 0:
-            speed = distanceTravelled / timeDifference
-            # Compute the past position estimate of one second ago
-            futurePosEstimate = self.lastSighting['pos'] - 1 * speed * direction
-
-            return futurePosEstimate
-        else:
-            return QVector2D(500, 500)
+        return self.lastSighting['pos'] + delta_vec
 
 
 class RunController(Controller):

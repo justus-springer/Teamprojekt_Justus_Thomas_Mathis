@@ -68,7 +68,7 @@ class RobotGame(QWidget):
 
     def initRobots(self):
 
-        chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseFollowController)
+        chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseGuardController)
         chaser2 = robots.ChaserRobot(2, 500, 200, 4, control.ChaseDirectlyController)
         chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
         runningRobot = robots.RunnerRobot(4, 500, 500, [1, 2, 3])
@@ -147,8 +147,8 @@ class RobotGame(QWidget):
         for robot in self.robots.values():
             robot.update(deltaTime, robot.collisionRadar(self.levelMatrix), self.robots.values())
 
-        # send positions data every 10th tick
-        if self.tickCounter % 10 == 0:
+        # send positions data every 5th tick
+        if self.tickCounter % 5 == 0:
             for robot in self.robots.values():
                 self.emitRobotSensorData(robot)
 
