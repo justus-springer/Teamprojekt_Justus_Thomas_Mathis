@@ -9,7 +9,7 @@ from levelLoader import LevelLoader
 import robots
 import control
 
-DEBUG_LINES = True
+DEBUG_LINES = False
 
 #Window options
 

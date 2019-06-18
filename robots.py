@@ -219,7 +219,7 @@ class BaseRobot(QObject):
 
     def shape(self):
         shape = QPainterPath()
-        shape.addEllipse(self.boundingRect())
+        shape.addEllipse(self.pos.toPointF(), self.r, self.r)
         return shape
 
     def view_cone(self):
