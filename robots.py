@@ -103,7 +103,7 @@ class BaseRobot(QObject):
         # send current information to the controller
         self.robotInfoSignal.emit(self.x, self.y, self.alpha, self.v, self.v_alpha)
 
-        self.collideWithRobots(robotList)
+        self.collideWithRobots(robotList, obstacles)
 
     def collideWithWalls(self, obstacles):
 
@@ -136,24 +136,24 @@ class BaseRobot(QObject):
 
                 # Set speed to zero (almost)
                 self.v = EPSILON_V
-<<<<<<< HEAD
-
 
     def collision(self, obstacles):
-=======
->>>>>>> runner-patch
 
+        for rect in obstacles:
 
-<<<<<<< HEAD
+            rect_center = QVector2D(rect.center())
+            vec = self.pos - rect_center
+            length = vec.length()
+            vec *= (length-self.r) / length
+
+            point = (rect_center + vec).toPointF()
+
             if rect.contains(point):
                 return True
 
         return False
 
     def collideWithRobots(self, robotList, obstacles):
-=======
-    def collideWithRobots(self, robotList):
->>>>>>> runner-patch
 
         for robot in robotList:
             if robot != self:

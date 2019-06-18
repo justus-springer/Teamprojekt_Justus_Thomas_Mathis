@@ -68,13 +68,8 @@ class RobotGame(QWidget):
 
     def initRobots(self):
 
-<<<<<<< HEAD
         chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseGuardController)
         chaser2 = robots.ChaserRobot(2, 500, 200, 4, control.ChaseDirectlyController)
-=======
-        chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseFollowController)
-        chaser2 = robots.ChaserRobot(2, 500, 800, 4, control.ChaseDirectlyController)
->>>>>>> runner-patch
         chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
         runningRobot = robots.RunnerRobot(4, 500, 300, [1, 2, 3])
 
