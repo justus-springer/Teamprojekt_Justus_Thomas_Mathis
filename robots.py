@@ -103,7 +103,7 @@ class BaseRobot(QObject):
         # send current information to the controller
         self.robotInfoSignal.emit(self.x, self.y, self.alpha, self.v, self.v_alpha)
 
-        self.collideWithRobots(robotList, obstacles)
+        self.collideWithRobots(robotList)
 
     def collideWithWalls(self, obstacles):
 
@@ -138,22 +138,7 @@ class BaseRobot(QObject):
                 self.v = EPSILON_V
 
 
-    def collision(self, obstacles):
-
-        for rect in obstacles:
-
-            rect_center = QVector2D(rect.center())
-            vec = self.pos - rect_center
-            length = vec.length()
-            vec *= (length-self.r) / length
-
-            point = (rect_center + vec).toPointF()
-
-            if rect.contains(point):
-                return True
-
-        return False
-    def collideWithRobots(self, robotList, obstacles):
+    def collideWithRobots(self, robotList):
 
         for robot in robotList:
             if robot != self:
@@ -163,13 +148,8 @@ class BaseRobot(QObject):
 
                 if distance <= self.r + robot.r:
                     overlap = self.r + robot.r - distance
-
-                    if self.collision(obstacles):
-                        robot.pos = robot.pos - overlap * direction
-
-                    else:
-                        self.pos += overlap / 2 * direction
-                        robot.pos = robot.pos - overlap / 2 * direction
+                    self.pos += overlap / 2 * direction
+                    robot.pos = robot.pos - overlap / 2 * direction
 
 
     def collisionRadar(self,levelMatrix):
@@ -283,7 +263,7 @@ class ChaserRobot(BaseRobot):
 
         self.controller = controllerClass(id, targetId)
 
-    def collideWithRobots(self, robotList, obstacles):
+    def collideWithRobots(self, robotList):
 
         for robot in robotList:
             if robot != self:

@@ -69,9 +69,9 @@ class RobotGame(QWidget):
     def initRobots(self):
 
         chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseFollowController)
-        chaser2 = robots.ChaserRobot(2, 500, 200, 4, control.ChaseDirectlyController)
+        chaser2 = robots.ChaserRobot(2, 500, 800, 4, control.ChaseDirectlyController)
         chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
-        runningRobot = robots.RunnerRobot(4, 500, 500, [1, 2, 3])
+        runningRobot = robots.RunnerRobot(4, 500, 300, [1, 2, 3])
 
         testRobot = robots.TestRobot(5, 500, 800)
         self.setTargetSignal.connect(testRobot.controller.setTarget)
