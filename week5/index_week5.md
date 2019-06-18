@@ -227,16 +227,16 @@ def collisionRadar(self,levelMatrix):
       #Calculate Limits
 
       x_min = minmax(int((self.x - self.r - COLL_BUFFER) // 10), 0, len(levelMatrix))
-      x_max = minmax(int((self.x + self.r + COLL_BUFFER + 1) // 10), 0, len(levelMatrix))
+      x_max = minmax(int((self.x + self.r + COLL_BUFFER) // 10 + 1), 0, len(levelMatrix))
       y_min = minmax(int((self.y - self.r - COLL_BUFFER) // 10), 0, len(levelMatrix))
-      y_max = minmax(int((self.y + self.r + COLL_BUFFER + 1) // 10), 0, len(levelMatrix))
+      y_max = minmax(int((self.y + self.r + COLL_BUFFER) // 10 + 1), 0, len(levelMatrix))
 
       #Fill obstacle list
       obstacles =[]
       for y in range(y_min, y_max):
           for x in range(x_min, x_max):
               if levelMatrix[y][x] == 1:
-                  obstacles.append(QRectF(x*10, y*10, 10, 10))
+                  obstacles.append(QRectF(x * 10, y * 10, 10, 10))
 
       return obstacles
 
