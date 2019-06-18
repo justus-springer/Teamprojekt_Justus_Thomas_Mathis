@@ -163,8 +163,13 @@ class BaseRobot(QObject):
 
                 if distance <= self.r + robot.r:
                     overlap = self.r + robot.r - distance
-                    self.pos += overlap / 2 * direction
-                    robot.pos = robot.pos - overlap / 2 * direction
+
+                    if self.collision(obstacles):
+                        robot.pos = robot.pos - overlap * direction
+
+                    else:
+                        self.pos += overlap / 2 * direction
+                        robot.pos = robot.pos - overlap / 2 * direction
 
 
     def collisionRadar(self,levelMatrix):
