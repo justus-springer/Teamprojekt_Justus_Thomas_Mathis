@@ -4,6 +4,7 @@ import random
 import math
 
 import robots
+from toolbox import sumvectors
 
 DAEMON_SLEEP = 50
 
@@ -91,6 +92,10 @@ class Controller(QThread):
                 self.a = -self.a_max
             else:
                 self.a = self.a_max
+
+    def moveInDirection(self, direction):
+        self.moveAtSpeed(self.v_max)
+        self.aimAt(self.x + 200 * direction.x(), self.y + 200 * direction.y())
 
     def rotateAtSpeed(self, target_speed):
 
@@ -234,59 +239,46 @@ class RunController(Controller):
         self.target_x = 0
         self.target_y = 0
         self.targetIds = targetIds
+        self.aimPos = QVector2D(500,500)
 
     def run(self):
 
-        self.a = self.a_max
-        self.result = 0
-
         while True:
-            self.temp = 0
 
-            #if self.x > 800 or self.x < 200 or self.y > 800 or self.y < 200:
-#
-             #   self.target_x = 500
-             #   self.target_y = 500
-             #   self.aimAt(self.target_x, self.target_y)
-             #   self.msleep(63)
+            if self.robotsInView != {}:
+
+                vecs = []
+                myPosition = QVector2D(self.x, self.y)
+
+                for id in self.targetIds:
+                    robot = self.robotsInView[id]
+                    v = (myPosition - robot['pos']).normalized()
+                    v *= (1 / robot['dist'])
+                    vecs.append(v)
+
+                wall_vecs = []
+                distances = []
+                for rect in self.wallsInView:
+
+                    rect_center = QVector2D(rect.center().x(), rect.center().y())
+                    direction = (myPosition - rect_center).normalized()
+                    distance = (myPosition - rect_center).length()
+
+                    if (myPosition - rect_center).length() < 200:
+                        wall_vecs.append(direction)
+                        distances.append(distance)
+
+                if len(distances) == 0:
+                    avg_distance = 1000
+                else:
+                    avg_distance = sum(distances) / len(distances)
+
+                result_wall_vec = sumvectors(wall_vecs).normalized()
+                result_wall_vec *= 3 * (1 / avg_distance)
+                vecs.append(result_wall_vec)
+
+                direction = sumvectors(vecs).normalized()
+                self.moveInDirection(direction)
 
 
-            for rect in self.wallsInView:
-
-                self.rect_center = QVector2D(rect.center())
-                if (math.fabs(self.x - self.rect_center.x()) < 200 and math.fabs(self.y - self.rect_center.y()) < 200):
-                    self.target_x = 500
-                    self.target_y = 500
-                    self.aimAt(self.target_x, self.target_y)
-                    self.msleep(100)
-
-
-                    break
-
-
-
-
-
-
-
-
-
-            if self.targetIds[0] in self.robotsInView :
-
-                self.temp_max = 2000
-
-                for i in range(3):
-
-                    if (self.robotsInView[self.targetIds[i]]['dist'] < self.temp_max):
-                        self.temp_max = self.robotsInView[self.targetIds[i]]['dist']
-                        self.result = i
-                        
-                   # if (math.sqrt(math.fabs(self.robotsInView[self.targetIds[i]]['x'] - self.x) + math.fabs(self.robotsInView[self.targetIds[i]]['y'] - self.y)) < self.temp_max):
-                   #     self.temp_max = math.sqrt(math.fabs(self.robotsInView[self.targetIds[i]]['x'] - self.x) + (math.fabs(self.robotsInView[self.targetIds[i]]['y'] - self.y)))
-                   #     self.result = i
-
-                self.target_x = self.x + (self.x - self.robotsInView[self.targetIds[self.result]]['x'])
-                self.target_y = self.y + (self.y - self.robotsInView[self.targetIds[self.result]]['y'])
-
-            self.aimAt(self.target_x, self.target_y)
             self.msleep(DAEMON_SLEEP)

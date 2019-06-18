@@ -163,15 +163,17 @@ class RobotGame(QWidget):
 
         cone = robot.view_cone()
         robotsInView = {}
-        wallsInView = {}
+        wallsInView = []
         timestamp = QDateTime.currentMSecsSinceEpoch()
 
         # Special case for runner robot: He sees everything:
         if isinstance(robot, robots.RunnerRobot):
             ids = self.robots.keys()
+            wallsInView = self.obstacles
         else:
             # Get ids of all robots that are in view, i.e. that intersect with the view cone
             ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
+            wallsInView = [rect for rect in self.obstacles if cone.intersects(rect)]
 
         for id in ids:
             other = self.robots[id]
@@ -179,16 +181,14 @@ class RobotGame(QWidget):
             angle = math.degrees(math.atan2(other.y - robot.y, other.x - robot.x))
             robotsInView[id] = {'x' : other.x,
                                 'y' : other.y,
+                                'id': other.id,
                                 'pos' : QVector2D(other.x, other.y),
                                 'dist' : dist,
                                 'angle' : angle,
                                 'timestamp' : timestamp}
 
         robot.robotsInViewSignal.emit(robotsInView)
-
-        walls = [rect for rect in self.obstacles if cone.intersects(rect)]
-
-        robot.wallsInViewSignal.emit(walls)
+        robot.wallsInViewSignal.emit(wallsInView)
 
 
     def mouseMoveEvent(self, event):

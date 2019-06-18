@@ -315,7 +315,7 @@ class ChaserRobot(BaseRobot):
 class RunnerRobot(BaseRobot):
 
     def __init__(self, id, x, y, chaserIds):
-        super().__init__(id, x, y, 50, 100, 25, 0, Qt.green)
+        super().__init__(id, x, y, 50, 130, 25, 0, Qt.green)
         self.controller = control.RunController(id, chaserIds)
 
 class TestRobot(BaseRobot):
