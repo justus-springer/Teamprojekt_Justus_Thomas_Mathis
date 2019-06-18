@@ -75,7 +75,9 @@ class BaseRobot(QObject):
 
     def drawDebugLines(self, qp):
         qp.setBrush(QBrush(Qt.NoBrush))
-        qp.setPen(Qt.red)
+        pen = QPen(Qt.red)
+        pen.setWidthF(1.5)
+        qp.setPen(pen)
         qp.drawPath(self.view_cone())
 
     def update(self, deltaTime, obstacles, robotList):
@@ -322,6 +324,15 @@ class RunnerRobot(BaseRobot):
     def __init__(self, id, x, y, chaserIds):
         super().__init__(id, x, y, 50, 130, 25, 0, Qt.green)
         self.controller = control.RunController(id, chaserIds)
+
+    def drawDebugLines(self, qp):
+        dir = self.controller.aim_direction.toPointF()
+        p1 = self.pos.toPointF()
+        p2 = p1 + 70 * dir
+        pen = QPen(Qt.blue)
+        pen.setWidth(3)
+        qp.setPen(pen)
+        qp.drawLine(p1, p2)
 
 class TestRobot(BaseRobot):
 

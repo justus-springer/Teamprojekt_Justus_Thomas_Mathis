@@ -73,10 +73,7 @@ class RobotGame(QWidget):
         chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
         runningRobot = robots.RunnerRobot(4, 500, 300, [1, 2, 3])
 
-        testRobot = robots.TestRobot(5, 500, 800)
-        self.setTargetSignal.connect(testRobot.controller.setTarget)
-
-        self.robots = {robot.id : robot for robot in [chaser1, chaser2, chaser3, runningRobot, testRobot]}
+        self.robots = {robot.id : robot for robot in [chaser1, chaser2, chaser3, runningRobot]}
 
         for robot in self.robots.values():
 

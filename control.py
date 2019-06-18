@@ -236,10 +236,8 @@ class RunController(Controller):
     def __init__(self, robotId, targetIds):
         super().__init__(robotId)
 
-        self.target_x = 0
-        self.target_y = 0
         self.targetIds = targetIds
-        self.aimPos = QVector2D(500,500)
+        self.aim_direction = QVector2D(1,0)
 
     def run(self):
 
@@ -277,8 +275,8 @@ class RunController(Controller):
                 result_wall_vec *= 3 * (1 / avg_distance) # wall vector counts 3 times as much as a robot
                 vecs.append(result_wall_vec)
 
-                direction = sumvectors(vecs).normalized()
-                self.moveInDirection(direction)
+                self.aim_direction = sumvectors(vecs).normalized()
+                self.moveInDirection(self.aim_direction)
 
 
             self.msleep(DAEMON_SLEEP)
