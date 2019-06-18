@@ -43,15 +43,17 @@ def emitRobotSensorData(self, robot):
 
       cone = robot.view_cone()
       robotsInView = {}
-      wallsInView = {}
+      wallsInView = []
       timestamp = QDateTime.currentMSecsSinceEpoch()
 
       # Special case for runner robot: He sees everything:
       if isinstance(robot, robots.RunnerRobot):
           ids = self.robots.keys()
+          wallsInView = self.obstacles
       else:
           # Get ids of all robots that are in view, i.e. that intersect with the view cone
           ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
+          wallsInView = [rect for rect in self.obstacles if cone.intersects(rect)]
 
       for id in ids:
           other = self.robots[id]
@@ -59,16 +61,14 @@ def emitRobotSensorData(self, robot):
           angle = math.degrees(math.atan2(other.y - robot.y, other.x - robot.x))
           robotsInView[id] = {'x' : other.x,
                               'y' : other.y,
+                              'id': other.id,
                               'pos' : QVector2D(other.x, other.y),
                               'dist' : dist,
                               'angle' : angle,
                               'timestamp' : timestamp}
 
       robot.robotsInViewSignal.emit(robotsInView)
-
-      walls = [rect for rect in self.obstacles if cone.intersects(rect)]
-
-      robot.wallsInViewSignal.emit(walls)
+      robot.wallsInViewSignal.emit(wallsInView)
 
 ```
 Diese Methode wird alle 10 Ticks aufgerufen. Die Signale robotsInViewSignal und wallsInViewSignal sind mit den jeweiligen Controllern der Roboter verbunden.
@@ -171,13 +171,95 @@ Der Runner verfolgt seine eigene Strategie. Er hat den Vorteil, immer alle Posit
 ```python
 class RunController(Controller):
 
-    ...
+    def __init__(self, robotId, targetIds):
+        super().__init__(robotId)
+
+        self.targetIds = targetIds
+
+    def run(self):
+
+        while True:
+
+            if self.robotsInView != {}:
+
+                vecs = []
+                myPosition = QVector2D(self.x, self.y)
+
+                for id in self.targetIds:
+                    robot = self.robotsInView[id]
+                    v = (myPosition - robot['pos']).normalized()
+                    v *= (1 / robot['dist'])
+                    vecs.append(v)
+
+                wall_vecs = []
+                distances = []
+                for rect in self.wallsInView:
+
+                    rect_center = QVector2D(rect.center().x(), rect.center().y())
+                    direction = (myPosition - rect_center).normalized()
+                    distance = (myPosition - rect_center).length()
+
+                    if (myPosition - rect_center).length() < 200:
+                        wall_vecs.append(direction)
+                        distances.append(distance)
+
+                if len(distances) == 0:
+                    avg_distance = 1000
+                else:
+                    avg_distance = sum(distances) / len(distances)
+
+                result_wall_vec = sumvectors(wall_vecs).normalized()
+                result_wall_vec *= 3 * (1 / avg_distance) # wall vector counts 3 times as much as a robot
+                vecs.append(result_wall_vec)
+
+                direction = sumvectors(vecs).normalized()
+                self.moveInDirection(direction)
+
+
+            self.msleep(DAEMON_SLEEP)
 
 ```
 
 ## Bessere Kollision
 
-...
+```python
+def collisionRadar(self,levelMatrix):
+      #Calculate Limits
+
+      x_min = minmax(int((self.x - self.r - COLL_BUFFER) // 10), 0, len(levelMatrix))
+      x_max = minmax(int((self.x + self.r + COLL_BUFFER + 1) // 10), 0, len(levelMatrix))
+      y_min = minmax(int((self.y - self.r - COLL_BUFFER) // 10), 0, len(levelMatrix))
+      y_max = minmax(int((self.y + self.r + COLL_BUFFER + 1) // 10), 0, len(levelMatrix))
+
+      #Fill obstacle list
+      obstacles =[]
+      for y in range(y_min, y_max):
+          for x in range(x_min, x_max):
+              if levelMatrix[y][x] == 1:
+                  obstacles.append(QRectF(x*10, y*10, 10, 10))
+
+      return obstacles
+
+def collideWithRobots(self, robotList, obstacles):
+
+      for robot in robotList:
+          if robot != self:
+              # distance to other robot
+              distance = (self.pos - robot.pos).length()
+              direction = (self.pos - robot.pos).normalized()
+
+              if distance <= self.r + robot.r:
+                  overlap = self.r + robot.r - distance
+
+                  if self.collision(obstacles):
+                      robot.pos = robot.pos - overlap * direction
+
+                  else:
+                      self.pos += overlap / 2 * direction
+                      robot.pos = robot.pos - overlap / 2 * direction
+
+```
+
 
 ## Teleportieren und Scoreboard
 
