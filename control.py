@@ -274,7 +274,7 @@ class RunController(Controller):
                     avg_distance = sum(distances) / len(distances)
 
                 result_wall_vec = sumvectors(wall_vecs).normalized()
-                result_wall_vec *= 3 * (1 / avg_distance)
+                result_wall_vec *= 3 * (1 / avg_distance) # wall vector counts 3 times as much as a robot
                 vecs.append(result_wall_vec)
 
                 direction = sumvectors(vecs).normalized()
