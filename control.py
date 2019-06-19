@@ -1,8 +1,12 @@
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, QDateTime
+from PyQt5.Qt import QVector2D
 import random
 import math
 
 import robots
+from toolbox import sumvectors
+
+DAEMON_SLEEP = 50
 
 class Controller(QThread):
 
@@ -23,6 +27,7 @@ class Controller(QThread):
         self.a_max = 0
         self.a_alpha_max = 0
         self.robotsInView = {}
+        self.wallsInView = {}
 
         # These will be fetched by the main program
         self.a = 0
@@ -67,7 +72,6 @@ class Controller(QThread):
                 else:
                     self.a_alpha = self.a_alpha_max
 
-
     def moveTo(self, target_x, target_y):
 
         self.aimAt(target_x, target_y)
@@ -89,13 +93,33 @@ class Controller(QThread):
             else:
                 self.a = self.a_max
 
+    def moveInDirection(self, direction):
+        self.moveAtSpeed(self.v_max)
+        self.aimAt(self.x + 200 * direction.x(), self.y + 200 * direction.y())
+
+    def rotateAtSpeed(self, target_speed):
+
+        if self.v_alpha < target_speed:
+            self.a_alpha = self.a_alpha_max
+        else:
+            self.a_alpha = -self.a_alpha_max
+
+    def moveAtSpeed(self, target_speed):
+
+        if self.v < target_speed:
+            self.a = self.a_max
+        else:
+            self.a = -self.a_max
+
 
     ### Slots ###
 
     # This will be called once at the beginning of the game
-    def receiveRobotSpecs(self, a_max, a_alpha_max):
+    def receiveRobotSpecs(self, a_max, a_alpha_max, v_max, v_alpha_max):
         self.a_max = a_max
         self.a_alpha_max = a_alpha_max
+        self.v_max = v_max
+        self.v_alpha_max = v_alpha_max
 
     # This will be called every tick
     def receiveRobotInfo(self, x, y, alpha, v, v_alpha):
@@ -127,54 +151,132 @@ class TargetController(Controller):
 
         while True:
             self.moveTo(self.target_x, self.target_y)
-            print('red robot currently sees: {0}'.format(list(self.robotsInView.keys())))
-            self.msleep(100)
+            self.msleep(DAEMON_SLEEP)
 
-
-class FollowController(Controller):
+# abstract
+class ChaseController(Controller):
 
     def __init__(self, robotId, targetId):
         super().__init__(robotId)
 
         self.targetId = targetId
-        self.target_x = 0
-        self.target_y = 0
+        self.lastSighting = {'x' : 500, 'y' : 500, 'pos' : QVector2D(0,0), 'dist' : 0, 'angle' : 0, 'timestamp' : 1000}
+        self.previousSighting = {'x' : 501, 'y' : 501, 'pos' : QVector2D(0,0), 'dist' : 0, 'angle' : 0, 'timestamp' : 0}
+        self.aimPos = QVector2D(500, 500)
+        self.state = "Searching"
+
+    # abstract
+    def computeAim(self):
+        raise NotImplementedError("Implement this method, stupid!")
+
+    def updateLastSighting(self):
+
+        # if the last sighting is older than 2 seconds, return to Searching
+        current_time = QDateTime.currentMSecsSinceEpoch()
+        if current_time > self.lastSighting['timestamp'] + 2000:
+            self.state = "Searching"
+
+        if self.targetId in self.robotsInView:
+            self.state = "Chasing"
+            newSighting = self.robotsInView[self.targetId]
+
+            # id this sighting is newer than the old one
+            if newSighting['timestamp'] > self.lastSighting['timestamp']:
+                self.previousSighting = self.lastSighting
+                self.lastSighting = newSighting
 
     def run(self):
 
-        self.a = self.a_max
-
         while True:
-            if self.targetId in self.robotsInView:
-                self.target_x = self.robotsInView[self.targetId]['x']
-                self.target_y = self.robotsInView[self.targetId]['y']
 
-            self.aimAt(self.target_x, self.target_y)
-            print('cyan robot currently sees: {0}'.format(list(self.robotsInView.keys())))
-            self.msleep(100)
+            self.updateLastSighting()
+            self.aimPos = self.computeAim()
 
-class runController(Controller):
+            if self.state == "Searching":
+                self.moveAtSpeed(0)
+                self.rotateAtSpeed(100)
 
-    def __init__(self, robotId, targetId):
+            elif self.state == "Chasing":
+                self.moveTo(self.aimPos.x(), self.aimPos.y())
+
+            self.msleep(DAEMON_SLEEP)
+
+
+class ChaseDirectlyController(ChaseController):
+
+    def computeAim(self):
+        return self.lastSighting['pos']
+
+class ChasePredictController(ChaseController):
+
+    def computeAim(self):
+
+        delta_vec = self.lastSighting['pos'] - self.previousSighting['pos']
+        timeDifference = (self.lastSighting['timestamp'] - self.previousSighting['timestamp']) / 1000
+        direction = delta_vec.normalized()
+        distanceTravelled = delta_vec.length()
+        speed = distanceTravelled / timeDifference
+
+        # Extrapolate the position one second into the FUTURE
+        futurePosEstimate = self.lastSighting['pos'] + 1 * speed * direction
+        return futurePosEstimate
+
+class ChaseGuardController(ChaseController):
+
+    def computeAim(self):
+        middle = QVector2D(500, 500)
+        delta_vec = middle - self.lastSighting['pos']
+        delta_vec *= 200 / delta_vec.length()
+
+        return self.lastSighting['pos'] + delta_vec
+
+
+class RunController(Controller):
+
+    def __init__(self, robotId, targetIds):
         super().__init__(robotId)
 
-        self.target_x = 0
-        self.target_y = 0
-        self.targetId = targetId
+        self.targetIds = targetIds
+        self.aim_direction = QVector2D(1,0)
 
     def run(self):
 
-        self.a = self.a_max
-
         while True:
 
-            if self.x > 800 or self.x < 200 or self.y > 800 or self.y < 200:
-                self.target_x = 500
-                self.target_y = 500
+            if self.robotsInView != {}:
 
-            elif self.targetId in self.robotsInView:
-                self.target_x = self.x + (self.x - self.robotsInView[self.targetId]['x'])
-                self.target_y = self.y + (self.y - self.robotsInView[self.targetId]['y'])
+                vecs = []
+                myPosition = QVector2D(self.x, self.y)
 
-            self.aimAt(self.target_x, self.target_y)
-            self.msleep(100)
+                for id in self.targetIds:
+                    robot = self.robotsInView[id]
+                    v = (myPosition - robot['pos']).normalized()
+                    v *= (1 / robot['dist'])
+                    vecs.append(v)
+
+                wall_vecs = []
+                distances = []
+                for rect in self.wallsInView:
+
+                    rect_center = QVector2D(rect.center().x(), rect.center().y())
+                    direction = (myPosition - rect_center).normalized()
+                    distance = (myPosition - rect_center).length()
+
+                    if (myPosition - rect_center).length() < 200:
+                        wall_vecs.append(direction)
+                        distances.append(distance)
+
+                if len(distances) == 0:
+                    avg_distance = 1000
+                else:
+                    avg_distance = sum(distances) / len(distances)
+
+                result_wall_vec = sumvectors(wall_vecs).normalized()
+                result_wall_vec *= 3 * (1 / avg_distance) # wall vector counts 3 times as much as a robot
+                vecs.append(result_wall_vec)
+
+                self.aim_direction = sumvectors(vecs).normalized()
+                self.moveInDirection(self.aim_direction)
+
+
+            self.msleep(DAEMON_SLEEP)

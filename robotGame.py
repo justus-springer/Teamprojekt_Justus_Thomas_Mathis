@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush
-from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF
+from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush, QFont
+from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF, QDateTime, QObject
 import numpy as np
 import math
 
@@ -9,15 +9,15 @@ from levelLoader import LevelLoader
 import robots
 import control
 
-DEBUG_LINES = True
+DEBUG_LINES = False
 
 #Window options
 
-START_WINDOW_WIDTH = 1000
-START_WINDOW_HEIGHT = 1000
+WINDOW_SIZE = 1000
 START_WINDOW_X_POS = 100
 START_WINDOW_Y_POS = 50
 WINDOW_TITLE = "Cooles Spiel"
+SCOREBOARD_FONT = QFont("Calibri", 15)
 
 # Game constants
 
@@ -43,45 +43,15 @@ class RobotGame(QWidget):
 
         # Load level data from file
         self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
+
         self.initUI()
 
         # Initialize timer
         self.gameTimer = QBasicTimer()
         self.gameTimer.start(TICK_INTERVALL, self)
 
-        # Initialize robots
-
-        robot1 = robots.BaseRobot(1, 900, 900, 30, 30, 0, Qt.GlobalColor.cyan)
-        robot2 = robots.BaseRobot(2, 500, 500, 30, 30, 0, Qt.GlobalColor.red)
-        robot3 = robots.BaseRobot(3, 700, 700, 30, 30, 0, Qt.GlobalColor.yellow)
-
-        self.robots = {1 : robot1, 2 : robot2, 3 : robot3}
-
-        # Initialize controllers
-        followController = control.FollowController(1, 2)
-        targetController = control.TargetController(2)
-        runController = control.runController(3, 2)
-
-        robot1.controller = followController
-        robot2.controller = targetController
-        robot3.controller = runController
-        self.setTargetSignal.connect(targetController.setTarget)
-
-        for robot in self.robots.values():
-
-            # connect signals (hook up the controller to the robot)
-            robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
-            robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
-            robot.controller.fullStopSignal.connect(robot.fullStop)
-            robot.controller.fullStopRotationSignal.connect(robot.fullStopRotation)
-            robot.robotsInViewSignal.connect(robot.controller.receiveRobotsInView)
-            robot.wallsInViewSignal.connect(robot.controller.receiveWallsInView)
-
-            # Tell the controller the specs of the robot (a_max and a_alpha_max)
-            robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max)
-
-            # Start the controller threads
-            robot.controller.start()
+        self.scoreBoard = ScoreBoard()
+        self.initRobots()
 
         # For deltaTime
         self.elapsedTimer = QElapsedTimer()
@@ -92,17 +62,48 @@ class RobotGame(QWidget):
 
     def initUI(self):
 
-        self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, START_WINDOW_WIDTH, START_WINDOW_HEIGHT)
+        self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, WINDOW_SIZE, WINDOW_SIZE)
         self.setWindowTitle(WINDOW_TITLE)
         self.show()
+
+    def initRobots(self):
+
+        chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseGuardController)
+        chaser2 = robots.ChaserRobot(2, 500, 200, 4, control.ChaseDirectlyController)
+        chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
+        runningRobot = robots.RunnerRobot(4, 500, 300, [1, 2, 3])
+
+        self.robots = {robot.id : robot for robot in [chaser1, chaser2, chaser3, runningRobot]}
+
+        for robot in self.robots.values():
+
+            # connect signals (hook up the controller to the robot)
+            robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
+            robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
+            robot.controller.fullStopSignal.connect(robot.fullStop)
+            robot.controller.fullStopRotationSignal.connect(robot.fullStopRotation)
+            robot.wallsInViewSignal.connect(robot.controller.receiveWallsInView)
+            robot.robotsInViewSignal.connect(robot.controller.receiveRobotsInView)
+
+            # connect scoreboard signals of chasers
+            if isinstance(robot, robots.ChaserRobot):
+                robot.scoreSignal.connect(self.scoreBoard.scoreSignalSlot)
+
+            # Tell the controller the specs of the robot (a_max and a_alpha_max)
+            robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max, robot.v_max, robot.v_alpha_max)
+
+            # Start the controller threads
+            robot.controller.start()
 
     def paintEvent(self, event):
 
         qp = QPainter()
         qp.begin(self)
         self.drawTiles(event, qp)
+        self.scoreBoard.draw(qp)
         for robot in self.robots.values():
             robot.draw(qp)
+        self.scoreBoard.draw(qp)
 
         if DEBUG_LINES:
             self.drawObstaclesDebugLines(qp)
@@ -143,18 +144,10 @@ class RobotGame(QWidget):
         for robot in self.robots.values():
             robot.update(deltaTime, robot.collisionRadar(self.levelMatrix), self.robots.values())
 
-        # send positions data every 10th tick
-        if self.tickCounter % 10 == 0:
-            allRobotInfos = {}
-            for other in self.robots.values():
-                allRobotInfos[other.id] = {'x' : other.x, 'y' : other.y}
-
+        # send positions data every 5th tick
+        if self.tickCounter % 5 == 0:
             for robot in self.robots.values():
-                cone = robot.view_cone_path()
-                robotsInView = {id : info for id,info in allRobotInfos.items()
-                                          if self.robots[id].shape().intersects(cone)}
-
-                robot.robotsInViewSignal.emit(robotsInView)
+                self.emitRobotSensorData(robot)
 
 
         # Update visuals
@@ -162,10 +155,65 @@ class RobotGame(QWidget):
 
         self.previous = elapsed
 
+
+    def emitRobotSensorData(self, robot):
+
+        cone = robot.view_cone()
+        robotsInView = {}
+        wallsInView = []
+        timestamp = QDateTime.currentMSecsSinceEpoch()
+
+        # Special case for runner robot: He sees everything:
+        if isinstance(robot, robots.RunnerRobot):
+            ids = self.robots.keys()
+            wallsInView = self.obstacles
+        else:
+            # Get ids of all robots that are in view, i.e. that intersect with the view cone
+            ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
+            wallsInView = [rect for rect in self.obstacles if cone.intersects(rect)]
+
+        for id in ids:
+            other = self.robots[id]
+            dist = (robot.pos - other.pos).length()
+            angle = math.degrees(math.atan2(other.y - robot.y, other.x - robot.x))
+            robotsInView[id] = {'x' : other.x,
+                                'y' : other.y,
+                                'id': other.id,
+                                'pos' : QVector2D(other.x, other.y),
+                                'dist' : dist,
+                                'angle' : angle,
+                                'timestamp' : timestamp}
+
+        robot.robotsInViewSignal.emit(robotsInView)
+        robot.wallsInViewSignal.emit(wallsInView)
+
+
     def mouseMoveEvent(self, event):
 
         self.setTargetSignal.emit(event.x(), event.y())
 
+class ScoreBoard(QObject):
+
+    def __init__(self):
+        super().__init__()
+        self.scores = {}
+
+    def draw(self, qp):
+
+        qp.setPen(Qt.black)
+        qp.setFont(SCOREBOARD_FONT)
+        text = "SCOREBOARD:\n"
+        for id in self.scores:
+            text += "Chaser {0}: {1}\n".format(id, self.scores[id])
+
+        qp.drawText(QRectF(0, 0, WINDOW_SIZE, 200), Qt.AlignCenter, text)
+
+    ### Slots
+    def scoreSignalSlot(self, id):
+        if id in self.scores:
+            self.scores[id] += 1
+        else:
+            self.scores[id] = 1
 
 if __name__ == '__main__':
 
