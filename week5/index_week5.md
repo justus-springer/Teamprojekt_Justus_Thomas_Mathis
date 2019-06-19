@@ -41,34 +41,33 @@ Jeder Roboter hat ein Attribut self.aov (angle of view). Mit diesen Hilfsmethode
 ```python
 def emitRobotSensorData(self, robot):
 
-      cone = robot.view_cone()
-      robotsInView = {}
-      wallsInView = []
-      timestamp = QDateTime.currentMSecsSinceEpoch()
+    cone = robot.view_cone()
+    robotsInView = {}
+    timestamp = QDateTime.currentMSecsSinceEpoch()
 
-      # Special case for runner robot: He sees everything:
-      if isinstance(robot, robots.RunnerRobot):
-          ids = self.robots.keys()
-          wallsInView = self.obstacles
-      else:
-          # Get ids of all robots that are in view, i.e. that intersect with the view cone
-          ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
-          wallsInView = [rect for rect in self.obstacles if cone.intersects(rect)]
+    # Special case for runner robot: He sees everything:
+    if isinstance(robot, robots.RunnerRobot):
+        ids = self.robots.keys()
+        wallsInView = self.obstacles
+    else:
+        # Get ids of all robots that are in view, i.e. that intersect with the view cone
+        ids = filter(lambda id : cone.intersects(self.robots[id].shape()), self.robots)
+        wallsInView = filter(cone.intersects, self.obstacles)
 
-      for id in ids:
-          other = self.robots[id]
-          dist = (robot.pos - other.pos).length()
-          angle = math.degrees(math.atan2(other.y - robot.y, other.x - robot.x))
-          robotsInView[id] = {'x' : other.x,
-                              'y' : other.y,
-                              'id': other.id,
-                              'pos' : QVector2D(other.x, other.y),
-                              'dist' : dist,
-                              'angle' : angle,
-                              'timestamp' : timestamp}
+    for id in ids:
+        other = self.robots[id]
+        dist = (robot.pos - other.pos).length()
+        angle = math.degrees(math.atan2(other.y - robot.y, other.x - robot.x))
+        robotsInView[id] = {'x' : other.x,
+                            'y' : other.y,
+                            'id': other.id,
+                            'pos' : QVector2D(other.x, other.y),
+                            'dist' : dist,
+                            'angle' : angle,
+                            'timestamp' : timestamp}
 
-      robot.robotsInViewSignal.emit(robotsInView)
-      robot.wallsInViewSignal.emit(wallsInView)
+    robot.robotsInViewSignal.emit(robotsInView)
+    robot.wallsInViewSignal.emit(list(wallsInView))
 
 ```
 Diese Methode wird alle 10 Ticks aufgerufen. Die Signale robotsInViewSignal und wallsInViewSignal sind mit den jeweiligen Controllern der Roboter verbunden.
