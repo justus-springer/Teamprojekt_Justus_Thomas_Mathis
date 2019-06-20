@@ -9,7 +9,7 @@ from levelLoader import LevelLoader
 import robots
 import control
 
-DEBUG_LINES = False
+DEBUG_LINES = True
 
 #Window options
 
@@ -160,7 +160,6 @@ class RobotGame(QWidget):
 
         cone = robot.view_cone()
         robotsInView = {}
-        wallsInView = []
         timestamp = QDateTime.currentMSecsSinceEpoch()
 
         # Special case for runner robot: He sees everything:
@@ -169,8 +168,8 @@ class RobotGame(QWidget):
             wallsInView = self.obstacles
         else:
             # Get ids of all robots that are in view, i.e. that intersect with the view cone
-            ids = [id for id in self.robots.keys() if self.robots[id].shape().intersects(cone)]
-            wallsInView = [rect for rect in self.obstacles if cone.intersects(rect)]
+            ids = filter(lambda id : cone.intersects(self.robots[id].shape()), self.robots)
+            wallsInView = filter(cone.intersects, self.obstacles)
 
         for id in ids:
             other = self.robots[id]
@@ -185,7 +184,7 @@ class RobotGame(QWidget):
                                 'timestamp' : timestamp}
 
         robot.robotsInViewSignal.emit(robotsInView)
-        robot.wallsInViewSignal.emit(wallsInView)
+        robot.wallsInViewSignal.emit(list(wallsInView))
 
 
     def mouseMoveEvent(self, event):
