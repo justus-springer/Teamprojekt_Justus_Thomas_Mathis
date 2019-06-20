@@ -262,7 +262,7 @@ class RunController(Controller):
                     direction = (myPosition - rect_center).normalized()
                     distance = (myPosition - rect_center).length()
 
-                    if (myPosition - rect_center).length() < 200:
+                    if distance < 200:
                         wall_vecs.append(direction)
                         distances.append(distance)
 
