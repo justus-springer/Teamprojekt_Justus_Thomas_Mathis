@@ -1,13 +1,15 @@
 from PyQt5.QtCore import QRectF
+from enum import Enum
+
+class Tile(Enum):
+    floor = 0
+    wall = 1
+    sand = 2
 
 class LevelLoader:
 
     LEVEL_SIZE = 100
     TILE_SIZE = 10
-
-    FLOOR_TILE = 0
-    WALL_TILE = 1
-    SAND_TILE = 2
 
     # Reads a txt file and creates an 2 dimensional array representing a level
     # A '0' represents free space, a '1' represents a wall
@@ -22,11 +24,11 @@ class LevelLoader:
             row = []
             for c in line:
                 if c == '0':
-                    row.append(LevelLoader.FLOOR_TILE)
+                    row.append(Tile.floor)
                 elif c == '1':
-                    row.append(LevelLoader.WALL_TILE)
+                    row.append(Tile.wall)
                 elif c == '2':
-                    row.append(LevelLoader.SAND_TILE)
+                    row.append(Tile.sand)
                 elif c == '\n':
                     pass
                 else:
@@ -35,7 +37,7 @@ class LevelLoader:
 
         for i in range(LevelLoader.LEVEL_SIZE):
             for j in range(LevelLoader.LEVEL_SIZE):
-                if levelMatrix[i][j] == 1:
+                if levelMatrix[i][j] == Tile.wall:
                     new_rect = QRectF(j * LevelLoader.TILE_SIZE, i * LevelLoader.TILE_SIZE,
                                     LevelLoader.TILE_SIZE, LevelLoader.TILE_SIZE)
 
@@ -45,7 +47,7 @@ class LevelLoader:
 
                     # Explore right and down to cover more walls in one square
                     n=0
-                    while all(all(x == 1 for x in column[j:j+n]) for column in levelMatrix[i:i+n]):
+                    while all(all(x == Tile.wall for x in column[j:j+n]) for column in levelMatrix[i:i+n]):
                         n += 1
 
                     rects.append(QRectF(j * LevelLoader.TILE_SIZE, i * LevelLoader.TILE_SIZE,

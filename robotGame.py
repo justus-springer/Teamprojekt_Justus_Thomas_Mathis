@@ -5,11 +5,11 @@ from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QR
 import numpy as np
 import math
 
-from levelLoader import LevelLoader
+from levelLoader import LevelLoader, Tile
 import robots
 import control
 
-DEBUG_LINES = True
+DEBUG_LINES = False
 
 #Window options
 
@@ -36,29 +36,21 @@ class RobotGame(QWidget):
 
     def __init__(self):
         super().__init__()
-        #initialize textures
-        self.wallTexture = QPixmap('textures/wall.png')
-        self.grassTexture = QPixmap('textures/grass.png')
-        self.sandTexture = QPixmap('textures/sand.png')
 
         # Load level data from file
         self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
 
-        self.initUI()
-
-        # Initialize timer
-        self.gameTimer = QBasicTimer()
-        self.gameTimer.start(TICK_INTERVALL, self)
-
         self.scoreBoard = ScoreBoard()
+        self.initUI()
+        self.initTextures()
+        self.initTimer()
         self.initRobots()
 
-        # For deltaTime
-        self.elapsedTimer = QElapsedTimer()
-        self.elapsedTimer.start()
-        self.previous = 0
+    def initTextures(self):
 
-        self.tickCounter = 0
+        self.tileTextures = {Tile.floor : QPixmap('textures/grass.png'),
+                             Tile.wall  : QPixmap('textures/wall.png'),
+                             Tile.sand  : QPixmap('textures/sand.png')}
 
     def initUI(self):
 
@@ -66,14 +58,27 @@ class RobotGame(QWidget):
         self.setWindowTitle(WINDOW_TITLE)
         self.show()
 
+    def initTimer(self):
+
+        self.gameTimer = QBasicTimer()
+        self.gameTimer.start(TICK_INTERVALL, self)
+
+        # For deltaTime
+        self.elapsedTimer = QElapsedTimer()
+        self.elapsedTimer.start()
+        self.previous = 0
+        self.tickCounter = 0
+
     def initRobots(self):
 
         chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseGuardController)
         chaser2 = robots.ChaserRobot(2, 500, 200, 4, control.ChaseDirectlyController)
         chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
         runningRobot = robots.RunnerRobot(4, 500, 300, [1, 2, 3])
+        testRobot = robots.TestRobot(5, 500, 800)
+        self.setTargetSignal.connect(testRobot.controller.setTarget)
 
-        self.robots = {robot.id : robot for robot in [chaser1, chaser2, chaser3, runningRobot]}
+        self.robots = {robot.id : robot for robot in [chaser1, chaser2, chaser3, runningRobot, testRobot]}
 
         for robot in self.robots.values():
 
@@ -117,13 +122,8 @@ class RobotGame(QWidget):
         qp.setPen(Qt.NoPen)
         for row in range(NUMBER_OF_TILES):
             for column in range(NUMBER_OF_TILES):
-                if(self.levelMatrix[row][column] == LevelLoader.WALL_TILE):
-                    texture = self.wallTexture
-                elif(self.levelMatrix[row][column] == LevelLoader.FLOOR_TILE):
-                    texture = self.grassTexture
-                elif(self.levelMatrix[row][column] == LevelLoader.SAND_TILE):
-                    texture = self.sandTexture
-
+                tile = self.levelMatrix[row][column]
+                texture = self.tileTextures[tile]
                 qp.drawPixmap(column*TILE_SIZE, row*TILE_SIZE, texture)
 
     def drawObstaclesDebugLines(self, qp):

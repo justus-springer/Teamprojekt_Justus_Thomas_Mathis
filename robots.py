@@ -6,6 +6,7 @@ import random
 
 import robotGame, control
 from toolbox import minmax
+from levelLoader import Tile
 
 # Epsilon values represent the smallest reasonable value greater than 0
 # Any speed/distance below their epsilon value should be interpreted as practically 0
@@ -186,7 +187,7 @@ class BaseRobot(QObject):
         obstacles =[]
         for y in range(y_min, y_max):
             for x in range(x_min, x_max):
-                if levelMatrix[y][x] == 1:
+                if levelMatrix[y][x] == Tile.wall:
                     obstacles.append(QRectF(x * 10, y * 10, 10, 10))
 
         return obstacles
