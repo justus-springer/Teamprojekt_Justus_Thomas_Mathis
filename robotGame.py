@@ -1,13 +1,12 @@
-import sys
+import sys, math
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
 from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush, QFont
 from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF, QDateTime, QObject
-import numpy as np
-import math
 
 from levelLoader import LevelLoader, Tile
 import robots
 import control
+from arsenal import Handgun
 
 DEBUG_LINES = False
 
@@ -33,6 +32,7 @@ TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 class RobotGame(QWidget):
 
     setTargetSignal = pyqtSignal(float, float)
+    keyPressedSignal = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
@@ -71,14 +71,16 @@ class RobotGame(QWidget):
 
     def initRobots(self):
 
-        chaser1 = robots.ChaserRobot(1, 200, 500, 4, control.ChaseGuardController)
-        chaser2 = robots.ChaserRobot(2, 500, 200, 4, control.ChaseDirectlyController)
-        chaser3 = robots.ChaserRobot(3, 800, 500, 4, control.ChasePredictController)
-        runningRobot = robots.RunnerRobot(4, 500, 300, [1, 2, 3])
-        testRobot = robots.TestRobot(5, 500, 800)
-        self.setTargetSignal.connect(testRobot.controller.setTarget)
+        testRobot = robots.TestRobot(1, 500, 500)
+        handgun = Handgun(testRobot, 200, 1)
+        handgun.hitSignal.connect(self.hitSignalSlot)
+        testRobot.equipWithGun(handgun)
 
-        self.robots = {robot.id : robot for robot in [chaser1, chaser2, chaser3, runningRobot, testRobot]}
+        chaser = robots.ChaserRobot(2, 500, 200, 1, control.ChaseDirectlyController)
+        self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
+        self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
+
+        self.robots = {robot.id : robot for robot in [testRobot, chaser]}
 
         for robot in self.robots.values():
 
@@ -87,6 +89,7 @@ class RobotGame(QWidget):
             robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
             robot.controller.fullStopSignal.connect(robot.fullStop)
             robot.controller.fullStopRotationSignal.connect(robot.fullStopRotation)
+            robot.controller.shootSignal.connect(robot.shoot)
             robot.wallsInViewSignal.connect(robot.controller.receiveWallsInView)
             robot.robotsInViewSignal.connect(robot.controller.receiveRobotsInView)
 
@@ -142,7 +145,7 @@ class RobotGame(QWidget):
 
         # Update robots
         for robot in self.robots.values():
-            robot.update(deltaTime, robot.collisionRadar(self.levelMatrix), self.robots.values())
+            robot.update(deltaTime, self.levelMatrix, self.robots)
 
         # send positions data every 5th tick
         if self.tickCounter % 5 == 0:
@@ -188,8 +191,16 @@ class RobotGame(QWidget):
 
 
     def mouseMoveEvent(self, event):
-
         self.setTargetSignal.emit(event.x(), event.y())
+
+    def keyPressEvent(self, event):
+        self.keyPressedSignal.emit(event.key())
+
+    ### Slots
+
+    # Will be called whenever a robot kills another robot. id is the id of the robots that has to be killed
+    def hitSignalSlot(self, id):
+        self.robots[id].respawn()
 
 class ScoreBoard(QObject):
 

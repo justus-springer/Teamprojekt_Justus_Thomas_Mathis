@@ -5,7 +5,7 @@ import math
 import random
 
 import robotGame, control
-from toolbox import minmax
+from toolbox import minmax, circleCircleCollision, circleRectCollision
 from levelLoader import Tile
 
 # Epsilon values represent the smallest reasonable value greater than 0
@@ -59,6 +59,11 @@ class BaseRobot(QObject):
         self.v_alpha = 0 # unit: degrees/second
         self.v_alpha_max = 360 # unit: degrees/second
 
+        self.gun = None
+
+    def equipWithGun(self, gun):
+        self.gun = gun
+
     def draw(self, qp):
 
         qp.setBrush(self.color)
@@ -74,6 +79,9 @@ class BaseRobot(QObject):
         qp.setFont(ID_FONT)
         qp.drawText(self.boundingRect(), Qt.AlignCenter, str(self.id))
 
+        if self.gun != None:
+            self.gun.draw(qp)
+
     def drawDebugLines(self, qp):
         qp.setBrush(QBrush(Qt.NoBrush))
         pen = QPen(Qt.red)
@@ -81,7 +89,7 @@ class BaseRobot(QObject):
         qp.setPen(pen)
         qp.drawPath(self.view_cone())
 
-    def update(self, deltaTime, obstacles, robotList):
+    def update(self, deltaTime, levelMatrix, robotsDict):
 
         # Fetch acceleration values from your thread
         self.a, self.a_alpha = self.controller.fetchValues()
@@ -96,6 +104,7 @@ class BaseRobot(QObject):
         self.v = minmax(self.v, -self.v_max, self.v_max)
         self.v_alpha = minmax(self.v_alpha, -self.v_alpha_max, self.v_alpha_max)
 
+        obstacles = self.collisionRadar(levelMatrix)
         self.collideWithWalls(obstacles)
 
         # Apply velocity
@@ -103,34 +112,20 @@ class BaseRobot(QObject):
         self.alpha += self.v_alpha * deltaTime
         self.alpha %= 360
 
+        self.collideWithRobots(robotsDict, obstacles)
+
         # send current information to the controller
         self.robotInfoSignal.emit(self.x, self.y, self.alpha, self.v, self.v_alpha)
 
-        self.collideWithRobots(robotList, obstacles)
+        if self.gun != None:
+            self.gun.update(deltaTime, levelMatrix, robotsDict)
 
     def collideWithWalls(self, obstacles):
 
         for rect in obstacles:
 
-            rect_center = QVector2D(rect.center())
-            vec = self.pos - rect_center
-            length = vec.length()
-            # scale the vector so it has length l-r
-            vec *= (length-self.r) / length
-            # This is the point of the robot which is closest to the rectangle
-            point = (rect_center + vec).toPointF()
-
-            if rect.contains(point):
-                if self.x >= rect_center.x() and self.y >= rect_center.y():
-                    corner = rect.bottomRight()
-                elif self.x >= rect_center.x() and self.y <= rect_center.y():
-                    corner = rect.topRight()
-                elif self.x <= rect_center.x() and self.y >= rect_center.y():
-                    corner = rect.bottomLeft()
-                elif self.x <= rect_center.x() and self.y <= rect_center.y():
-                    corner = rect.topLeft()
-
-                overlap = corner - point
+            overlap = circleRectCollision(self.pos, self.r, rect)
+            if overlap:
 
                 if abs(overlap.x()) > abs(overlap.y()):
                     self.translate(0, overlap.y())
@@ -140,42 +135,35 @@ class BaseRobot(QObject):
                 # Set speed to zero (almost)
                 self.v = EPSILON_V
 
-    def collision(self, obstacles):
+    def isColliding(self, obstacles):
 
         for rect in obstacles:
-
-            rect_center = QVector2D(rect.center())
-            vec = self.pos - rect_center
-            length = vec.length()
-            vec *= (length-self.r) / length
-
-            point = (rect_center + vec).toPointF()
-
-            if rect.contains(point):
+            if circleRectCollision(self.pos, self.r, rect):
                 return True
 
         return False
 
-    def collideWithRobots(self, robotList, obstacles):
+    def collideWithRobots(self, robotsDict, obstacles):
 
-        for robot in robotList:
-            if robot != self:
-                # distance to other robot
-                distance = (self.pos - robot.pos).length()
-                direction = (self.pos - robot.pos).normalized()
+        for id in robotsDict:
+            if id != self.id:
+                robot = robotsDict[id]
+                overlap_vec = circleCircleCollision(self.pos, self.r, robot.pos, robot.r)
 
-                if distance <= self.r + robot.r:
-                    overlap = self.r + robot.r - distance
-
-                    if self.collision(obstacles):
-                        robot.pos = robot.pos - overlap * direction
+                if overlap_vec:
+                    if self.isColliding(obstacles):
+                        robot.pos -= overlap_vec
 
                     else:
-                        self.pos += overlap / 2 * direction
-                        robot.pos = robot.pos - overlap / 2 * direction
+                        self.pos += overlap_vec / 2
+                        robot.pos -= overlap_vec / 2
 
+                    self.hook_collidedWith(robot)
 
-    def collisionRadar(self,levelMatrix):
+    def hook_collidedWith(self, robot):
+        pass
+
+    def collisionRadar(self, levelMatrix):
         #Calculate Limits
 
         x_min = minmax(int((self.x - self.r - COLL_BUFFER) // 10), 0, len(levelMatrix))
@@ -184,7 +172,7 @@ class BaseRobot(QObject):
         y_max = minmax(int((self.y + self.r + COLL_BUFFER) // 10 + 1), 0, len(levelMatrix))
 
         #Fill obstacle list
-        obstacles =[]
+        obstacles = []
         for y in range(y_min, y_max):
             for x in range(x_min, x_max):
                 if levelMatrix[y][x] == Tile.wall:
@@ -192,12 +180,9 @@ class BaseRobot(QObject):
 
         return obstacles
 
+    ### Slots
 
     def fullStop(self):
-        """ This is a special operation to fully top the robot, i.e. set v to zero.
-            It can only be called, if v is reasonably small, i.e. if |v| < EPSILON_V
-            returns True if the operation was succesfull
-        """
 
         if abs(self.v) < EPSILON_V:
             self.v = 0
@@ -206,13 +191,24 @@ class BaseRobot(QObject):
             return False
 
     def fullStopRotation(self):
-        """ see above
-        """
+
         if abs(self.v_alpha) < EPSILON_V_ALPHA:
             self.v_alpha = 0
             return True
         else:
             return False
+
+    def shoot(self):
+        if self.gun != None:
+            self.gun.shoot(self.direction())
+
+    def respawn(self):
+        spawn_x = random.uniform(200, 800)
+        spawn_y = random.uniform(200, 800)
+        self.pos = QVector2D(spawn_x, spawn_y)
+
+        
+    ### properties and helperfunction
 
     def direction(self):
         return QVector2D(math.cos(self.alpha_radians), math.sin(self.alpha_radians))
@@ -284,28 +280,11 @@ class ChaserRobot(BaseRobot):
 
         self.controller = controllerClass(id, targetId)
 
-    def collideWithRobots(self, robotList, obstacles):
-
-        for robot in robotList:
-            if robot != self:
-                # distance to other robot
-                distance = (self.pos - robot.pos).length()
-                direction = (self.pos - robot.pos).normalized()
-
-                if distance <= self.r + robot.r:
-                    overlap = self.r + robot.r - distance
-
-                    if self.collision(obstacles):
-                        robot.pos = robot.pos - overlap * direction
-
-                    else:
-                        self.pos += overlap / 2 * direction
-                        robot.pos = robot.pos - overlap / 2 * direction
-
-                    # if the other robot was a runner, teleport to your spawn
-                    if isinstance(robot, RunnerRobot):
-                        self.teleportToFarthestPoint(robot.pos)
-                        self.scoreSignal.emit(self.id)
+    def hook_collidedWith(self, robot):
+        # if the other robot was a runner, teleport to your spawn
+        if isinstance(robot, RunnerRobot):
+            self.teleportToFarthestPoint(robot.pos)
+            self.scoreSignal.emit(self.id)
 
     def drawDebugLines(self, qp):
         super().drawDebugLines(qp)
@@ -339,4 +318,4 @@ class TestRobot(BaseRobot):
 
     def __init__(self, id, x, y):
         super().__init__(id, x, y, 30, 200, 30, 0, Qt.red)
-        self.controller = control.TargetController(id)
+        self.controller = control.PlayerController(id)
