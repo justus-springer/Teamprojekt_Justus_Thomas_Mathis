@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QR
 from levelLoader import LevelLoader, Tile
 import robots
 import control
-from arsenal import Handgun
+from arsenal import Handgun, Shotgun
 
 DEBUG_LINES = False
 
@@ -71,16 +71,22 @@ class RobotGame(QWidget):
 
     def initRobots(self):
 
-        testRobot = robots.TestRobot(1, 500, 500)
-        handgun = Handgun(testRobot, 200, 1)
-        handgun.hitSignal.connect(self.hitSignalSlot)
-        testRobot.equipWithGun(handgun)
+        #testRobot = robots.TestRobot(1, 500, 500)
+        #handgun = Handgun(testRobot, 200, 1)
+        #handgun.hitSignal.connect(self.hitSignalSlot)
+        #testRobot.equipWithGun(handgun)
+
+        testRobot2 = robots.TestRobot(1, 500, 500)
+        shotgun = Shotgun(testRobot2, 200, 1)
+        shotgun.hitSignal.connect(self.hitSignalSlot)
+        testRobot2.equipWithGun(shotgun)
 
         chaser = robots.ChaserRobot(2, 500, 200, 1, control.ChaseDirectlyController)
-        self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
-        self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
+        self.setTargetSignal.connect(testRobot2.controller.setTargetSlot)
+        self.keyPressedSignal.connect(testRobot2.controller.keyPressedSlot)
 
-        self.robots = {robot.id : robot for robot in [testRobot, chaser]}
+        #self.robots = {robot.id: robot for robot in [testRobot, chaser]}
+        self.robots = {robot.id : robot for robot in [testRobot2, chaser]}
 
         for robot in self.robots.values():
 
