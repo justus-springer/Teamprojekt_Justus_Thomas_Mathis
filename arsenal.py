@@ -47,11 +47,8 @@ class Handgun(QObject):
         if self.readyToShoot():
             bulletSpeed = self.baseSpeed + self.owner.v
             bullet = Bullet(self.owner, self.pos, direction, bulletSpeed)
-            bullet2 = Bullet(self.owner, self.pos, direction * QVector2D(0.8, 1.1), bulletSpeed)
-            bullet3 = Bullet(self.owner, self.pos, direction * QVector2D(1.1, 0.9), bulletSpeed)
             self.bullets.append(bullet)
-            self.bullets.append(bullet2)
-            self.bullets.append(bullet3)
+
             self.resetTimer()
 
     def readyToShoot(self):
