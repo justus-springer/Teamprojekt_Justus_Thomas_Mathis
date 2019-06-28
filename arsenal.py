@@ -78,8 +78,13 @@ class Shotgun(QObject):
     def update(self, deltaTime, levelMatrix, robotsDict):
         self.pos = self.owner.pos
 
+
+
         for bullet in self.bullets:
             bullet.update(deltaTime, levelMatrix, robotsDict)
+            if bullet.outOfRange() == True:
+                self.bullets.remove(bullet)
+
             if bullet.collidesWithWorld(levelMatrix):
                 self.bullets.remove(bullet)
                 del bullet
@@ -91,8 +96,7 @@ class Shotgun(QObject):
                 self.bullets.remove(bullet)
                 del bullet
 
-            if bullet.outOfRange() == True:
-                self.bullets.remove(bullet)
+
 
 
         # decrement reload timer. If it hits zero, the gun can shoot again
