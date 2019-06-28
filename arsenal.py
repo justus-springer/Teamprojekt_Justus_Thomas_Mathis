@@ -2,25 +2,54 @@ from PyQt5.QtGui import QPainter, QPen, QVector2D
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 import math
 
-class Handgun(QObject):
+# abstract
+class Gun(QObject):
 
     # This will be emitted when the handgun hits another robot. It transmits the id of the robot that has been hit
     hitSignal = pyqtSignal(int)
 
-    def __init__(self, owner, baseSpeed, timeToReload):
+    def __init__(self, owner, baseSpeed, timeToReload, bulletRadius):
         super().__init__()
 
         self.owner = owner
-        self.pos = self.owner.pos
-        self.baseSpeed = 300
-        self.timeToReload = 2 # seconds
+        self.pos = QVector2D(0,0)
+        self.x = owner.x
+        self.y = owner.y
+        self.baseSpeed = baseSpeed
+        self.timeToReload = timeToReload # seconds
+        self.bulletRadius = bulletRadius
         self.reloadTimer = 0
-        self.radius = 5
 
         self.bullets = []
 
     def update(self, deltaTime, levelMatrix, robotsDict):
         self.pos = self.owner.pos
+
+        # decrement reload timer. If it hits zero, the gun can shoot again
+        if not self.readyToShoot():
+            self.reloadTimer -= deltaTime
+
+    def draw(self, qp):
+        for bullet in self.bullets:
+            bullet.draw(qp)
+
+    # abstract
+    def shoot(self, direction):
+        raise NotImplementedError("Implement this method, stupid!")
+
+    def readyToShoot(self):
+        return self.reloadTimer <= 0
+
+    def resetTimer(self):
+        self.reloadTimer = self.timeToReload
+
+class Handgun(Gun):
+
+    def __init__(self, owner, baseSpeed, timeToReload):
+        super().__init__(owner, baseSpeed, timeToReload, bulletRadius=5)
+
+    def update(self, deltaTime, levelMatrix, robotsDict):
+        super().update(deltaTime, levelMatrix, robotsDict)
 
         for bullet in self.bullets:
             bullet.update(deltaTime, levelMatrix, robotsDict)
@@ -35,50 +64,22 @@ class Handgun(QObject):
                 self.bullets.remove(bullet)
                 del bullet
 
-        # decrement reload timer. If it hits zero, the gun can shoot again
-        if not self.readyToShoot():
-            self.reloadTimer -= deltaTime
-
-    def draw(self, qp):
-        for bullet in self.bullets:
-            bullet.draw(qp)
-
     def shoot(self, direction):
         if self.readyToShoot():
             bulletSpeed = self.baseSpeed + self.owner.v
-            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed)
+            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius)
             self.bullets.append(bullet)
 
             self.resetTimer()
 
-    def readyToShoot(self):
-        return self.reloadTimer <= 0
 
-    def resetTimer(self):
-        self.reloadTimer = self.timeToReload
-
-
-class Shotgun(QObject):
-
-    # This will be emitted when the shotgun hits another robot. It transmits the id of the robot that has been hit
-    hitSignal = pyqtSignal(int)
+class Shotgun(Gun):
 
     def __init__(self, owner, baseSpeed, timeToReload):
-        super().__init__()
-
-        self.owner = owner
-        self.pos = self.owner.pos
-        self.baseSpeed = 300
-        self.timeToReload = 2 # seconds
-        self.reloadTimer = 0
-        self.radius = 3
-
-        self.bullets = []
+        super().__init__(owner, baseSpeed, timeToReload, bulletRadius=3)
 
     def update(self, deltaTime, levelMatrix, robotsDict):
-        self.pos = self.owner.pos
-
-
+        super().update(deltaTime, levelMatrix, robotsDict)
 
         for bullet in self.bullets:
             bullet.update(deltaTime, levelMatrix, robotsDict)
@@ -96,33 +97,17 @@ class Shotgun(QObject):
                 self.bullets.remove(bullet)
                 del bullet
 
-
-
-
-        # decrement reload timer. If it hits zero, the gun can shoot again
-        if not self.readyToShoot():
-            self.reloadTimer -= deltaTime
-
-    def draw(self, qp):
-        for bullet in self.bullets:
-            bullet.draw(qp)
-
     def shoot(self, direction):
         if self.readyToShoot():
             bulletSpeed = self.baseSpeed + self.owner.v
-            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.radius)
-            bullet2 = Bullet(self.owner, self.pos, (direction * QVector2D(0.8, 1.2)).normalized(), bulletSpeed, self.radius)
-            bullet3 = Bullet(self.owner, self.pos, (direction * QVector2D(1.2, 0.8)).normalized(), bulletSpeed, self.radius)
+            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius)
+            bullet2 = Bullet(self.owner, self.pos, (direction * QVector2D(0.8, 1.2)).normalized(), bulletSpeed, self.bulletRadius)
+            bullet3 = Bullet(self.owner, self.pos, (direction * QVector2D(1.2, 0.8)).normalized(), bulletSpeed, self.bulletRadius)
             self.bullets.append(bullet)
             self.bullets.append(bullet2)
             self.bullets.append(bullet3)
             self.resetTimer()
 
-    def readyToShoot(self):
-        return self.reloadTimer <= 0
-
-    def resetTimer(self):
-        self.reloadTimer = self.timeToReload
 
 class Bullet:
 
@@ -158,14 +143,11 @@ class Bullet:
 
         return None
 
-
     def outOfRange(self):
         if (math.fabs((self.owner.pos - self.pos).length()) > 200):
             return True
         else:
             return False
-
-
 
     def draw(self, qp):
         qp.setPen(QPen(Qt.NoPen))
