@@ -59,10 +59,23 @@ class BaseRobot(QObject):
         self.v_alpha = 0 # unit: degrees/second
         self.v_alpha_max = 360 # unit: degrees/second
 
-        self.gun = None
+        self.guns = []
+        self.selected_gun = None
 
-    def equipWithGun(self, gun):
-        self.gun = gun
+    def equipWithGuns(self, *guns):
+        self.guns = guns
+        self.selected_gun = guns[0]
+
+    def connectSignals(self):
+        self.robotSpecsSignal.connect(self.controller.receiveRobotSpecs)
+        self.robotInfoSignal.connect(self.controller.receiveRobotInfo)
+        self.robotsInViewSignal.connect(self.controller.receiveRobotsInView)
+        self.wallsInViewSignal.connect(self.controller.receiveWallsInView)
+
+        self.controller.fullStopSignal.connect(self.fullStop)
+        self.controller.fullStopRotationSignal.connect(self.fullStopRotation)
+        self.controller.shootSignal.connect(self.shoot)
+        self.controller.switchToGunSignal.connect(self.swithToGun)
 
     def draw(self, qp):
 
@@ -79,8 +92,8 @@ class BaseRobot(QObject):
         qp.setFont(ID_FONT)
         qp.drawText(self.boundingRect(), Qt.AlignCenter, str(self.id))
 
-        if self.gun != None:
-            self.gun.draw(qp)
+        for gun in self.guns:
+            gun.draw(qp)
 
     def drawDebugLines(self, qp):
         qp.setBrush(QBrush(Qt.NoBrush))
@@ -117,8 +130,8 @@ class BaseRobot(QObject):
         # send current information to the controller
         self.robotInfoSignal.emit(self.x, self.y, self.alpha, self.v, self.v_alpha)
 
-        if self.gun != None:
-            self.gun.update(deltaTime, levelMatrix, robotsDict)
+        for gun in self.guns:
+            gun.update(deltaTime, levelMatrix, robotsDict)
 
     def collideWithWalls(self, obstacles):
 
@@ -199,15 +212,20 @@ class BaseRobot(QObject):
             return False
 
     def shoot(self):
-        if self.gun != None:
-            self.gun.shoot(self.direction())
+        if self.selected_gun != None:
+            if self.selected_gun.readyToFire():
+                self.selected_gun.fire(self.direction())
+
+    def swithToGun(self, index):
+        if index < len(self.guns):
+            self.selected_gun = self.guns[index]
 
     def respawn(self):
         spawn_x = random.uniform(200, 800)
         spawn_y = random.uniform(200, 800)
         self.pos = QVector2D(spawn_x, spawn_y)
 
-        
+
     ### properties and helperfunction
 
     def direction(self):

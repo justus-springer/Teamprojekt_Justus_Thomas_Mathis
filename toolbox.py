@@ -1,7 +1,15 @@
-from PyQt5.Qt import QVector2D
+from PyQt5.Qt import QVector2D, Qt
+import math
 
 def minmax(value, low, high):
     return max(min(value, high), low)
+
+# Takes an angle in degrees and returns a normalized vector pointing in that angle
+def angleToVector(angle):
+    return QVector2D(math.cos(math.radians(angle)), math.sin(math.radians(angle)))
+
+def vectorToAngle(vector):
+    return math.degrees(math.atan2(vector.y(), vector.x()))
 
 def sumvectors(vecs):
     result = QVector2D(0,0)
@@ -49,3 +57,14 @@ def circleRectCollision(pos, r, rect):
         return overlap
     else:
         return None
+
+
+def isNumberKey(keyId):
+    return keyId in [getattr(Qt, 'Key_' + str(i)) for i in range(10)]
+
+def keyToNumber(keyId):
+    for i in range(10):
+        if keyId == getattr(Qt, 'Key_' + str(i)):
+            return i
+
+    return 0

@@ -1,6 +1,10 @@
 from PyQt5.QtGui import QPainter, QPen, QVector2D
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
+from PyQt5.Qt import QSoundEffect, QUrl
 import math
+import random
+
+from toolbox import vectorToAngle, angleToVector
 
 # abstract
 class Gun(QObject):
@@ -26,7 +30,7 @@ class Gun(QObject):
         self.pos = self.owner.pos
 
         # decrement reload timer. If it hits zero, the gun can shoot again
-        if not self.readyToShoot():
+        if not self.readyToFire():
             self.reloadTimer -= deltaTime
 
     def draw(self, qp):
@@ -34,10 +38,10 @@ class Gun(QObject):
             bullet.draw(qp)
 
     # abstract
-    def shoot(self, direction):
+    def fire(self, direction):
         raise NotImplementedError("Implement this method, stupid!")
 
-    def readyToShoot(self):
+    def readyToFire(self):
         return self.reloadTimer <= 0
 
     def resetTimer(self):
@@ -48,6 +52,10 @@ class Handgun(Gun):
     def __init__(self, owner, baseSpeed, timeToReload):
         super().__init__(owner, baseSpeed, timeToReload, bulletRadius=5)
 
+        self.soundEffect = QSoundEffect(self)
+        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/handgun.wav"))
+        self.soundEffect.setVolume(0.25)
+
     def update(self, deltaTime, levelMatrix, robotsDict):
         super().update(deltaTime, levelMatrix, robotsDict)
 
@@ -64,29 +72,33 @@ class Handgun(Gun):
                 self.bullets.remove(bullet)
                 del bullet
 
-    def shoot(self, direction):
-        if self.readyToShoot():
+    def fire(self, direction):
+        if self.readyToFire():
             bulletSpeed = self.baseSpeed + self.owner.v
-            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius)
+            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius, 10)
             self.bullets.append(bullet)
 
             self.resetTimer()
+            self.soundEffect.play()
 
 
 class Shotgun(Gun):
 
-    def __init__(self, owner, baseSpeed, timeToReload):
+    def __init__(self, owner, baseSpeed, timeToReload, bulletsPerShot):
         super().__init__(owner, baseSpeed, timeToReload, bulletRadius=3)
+
+        self.bulletsPerShot = bulletsPerShot
+
+        self.soundEffect = QSoundEffect(self)
+        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/shotgun.wav"))
+        self.soundEffect.setVolume(0.25)
 
     def update(self, deltaTime, levelMatrix, robotsDict):
         super().update(deltaTime, levelMatrix, robotsDict)
 
         for bullet in self.bullets:
             bullet.update(deltaTime, levelMatrix, robotsDict)
-            if bullet.outOfRange() == True:
-                self.bullets.remove(bullet)
-
-            if bullet.collidesWithWorld(levelMatrix):
+            if bullet.isTooOld() or bullet.collidesWithWorld(levelMatrix):
                 self.bullets.remove(bullet)
                 del bullet
                 continue
@@ -97,29 +109,37 @@ class Shotgun(Gun):
                 self.bullets.remove(bullet)
                 del bullet
 
-    def shoot(self, direction):
-        if self.readyToShoot():
+    def fire(self, direction):
+        MAX_SCATTER_ANGLE = 10
+        MAX_SCATTER_SPEED = 20
+
+        if self.readyToFire():
             bulletSpeed = self.baseSpeed + self.owner.v
-            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius)
-            bullet2 = Bullet(self.owner, self.pos, (direction * QVector2D(0.8, 1.2)).normalized(), bulletSpeed, self.bulletRadius)
-            bullet3 = Bullet(self.owner, self.pos, (direction * QVector2D(1.2, 0.8)).normalized(), bulletSpeed, self.bulletRadius)
-            self.bullets.append(bullet)
-            self.bullets.append(bullet2)
-            self.bullets.append(bullet3)
+            baseAngle = vectorToAngle(direction)
+            for i in range(self.bulletsPerShot):
+                scatteredAngle = baseAngle + random.uniform(-MAX_SCATTER_ANGLE, MAX_SCATTER_ANGLE)
+                scatteredDirection = angleToVector(scatteredAngle)
+                scatteredSpeed = bulletSpeed + random.uniform(-MAX_SCATTER_SPEED, MAX_SCATTER_SPEED)
+                self.bullets.append(Bullet(self.owner, self.pos, scatteredDirection, scatteredSpeed, self.bulletRadius, 1))
+
             self.resetTimer()
+            self.soundEffect.play()
 
 
 class Bullet:
 
-    def __init__(self, owner, startPos, direction, speed, radius):
+    def __init__(self, owner, startPos, direction, speed, radius, maxAge):
         self.owner = owner
         self.pos = QVector2D(startPos.x(), startPos.y())
         self.direction = direction
         self.speed = speed
         self.radius = radius
+        self.maxAge = maxAge
+        self.age = 0
 
     def update(self, deltaTime, levelMatrix, robotsDict):
         self.pos += deltaTime * self.speed * self.direction
+        self.age += deltaTime
 
     # Returns true if the bullet collides with the world
     def collidesWithWorld(self, levelMatrix):
@@ -143,11 +163,9 @@ class Bullet:
 
         return None
 
-    def outOfRange(self):
-        if (math.fabs((self.owner.pos - self.pos).length()) > 200):
-            return True
-        else:
-            return False
+    # Returns true if the bullet should be deleted
+    def isTooOld(self):
+        return self.age > self.maxAge
 
     def draw(self, qp):
         qp.setPen(QPen(Qt.NoPen))

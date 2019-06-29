@@ -4,7 +4,7 @@ import random
 import math
 
 import robots
-from toolbox import sumvectors
+from toolbox import sumvectors, isNumberKey, keyToNumber
 
 DAEMON_SLEEP = 50
 
@@ -15,6 +15,7 @@ class Controller(QThread):
     fullStopRotationSignal = pyqtSignal()
 
     shootSignal = pyqtSignal()
+    switchToGunSignal = pyqtSignal(int)
 
     def __init__(self, robotId):
         super().__init__()
@@ -160,6 +161,9 @@ class PlayerController(Controller):
     def keyPressedSlot(self, keyId):
         if keyId == Qt.Key_Space:
             self.shootSignal.emit()
+        elif isNumberKey(keyId):
+            # shift one, because number pad starts at 1
+            self.switchToGunSignal.emit(keyToNumber(keyId) - 1)
 
 
 # abstract

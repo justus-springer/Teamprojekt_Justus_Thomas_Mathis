@@ -71,33 +71,23 @@ class RobotGame(QWidget):
 
     def initRobots(self):
 
-        #testRobot = robots.TestRobot(1, 500, 500)
-        #handgun = Handgun(testRobot, 200, 1)
-        #handgun.hitSignal.connect(self.hitSignalSlot)
-        #testRobot.equipWithGun(handgun)
-
-        testRobot2 = robots.TestRobot(1, 500, 500)
-        shotgun = Shotgun(testRobot2, 200, 1)
+        testRobot = robots.TestRobot(1, 500, 500)
+        handgun = Handgun(testRobot, 500, 0.5)
+        shotgun = Shotgun(testRobot, 200, 1, 10)
+        handgun.hitSignal.connect(self.hitSignalSlot)
         shotgun.hitSignal.connect(self.hitSignalSlot)
-        testRobot2.equipWithGun(shotgun)
+        testRobot.equipWithGuns(handgun, shotgun)
 
         chaser = robots.ChaserRobot(2, 500, 200, 1, control.ChaseDirectlyController)
-        self.setTargetSignal.connect(testRobot2.controller.setTargetSlot)
-        self.keyPressedSignal.connect(testRobot2.controller.keyPressedSlot)
+        self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
+        self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
 
         #self.robots = {robot.id: robot for robot in [testRobot, chaser]}
-        self.robots = {robot.id : robot for robot in [testRobot2, chaser]}
+        self.robots = {robot.id : robot for robot in [testRobot, chaser]}
 
         for robot in self.robots.values():
 
-            # connect signals (hook up the controller to the robot)
-            robot.robotSpecsSignal.connect(robot.controller.receiveRobotSpecs)
-            robot.robotInfoSignal.connect(robot.controller.receiveRobotInfo)
-            robot.controller.fullStopSignal.connect(robot.fullStop)
-            robot.controller.fullStopRotationSignal.connect(robot.fullStopRotation)
-            robot.controller.shootSignal.connect(robot.shoot)
-            robot.wallsInViewSignal.connect(robot.controller.receiveWallsInView)
-            robot.robotsInViewSignal.connect(robot.controller.receiveRobotsInView)
+            robot.connectSignals()
 
             # connect scoreboard signals of chasers
             if isinstance(robot, robots.ChaserRobot):
