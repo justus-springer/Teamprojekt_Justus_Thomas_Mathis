@@ -4,7 +4,8 @@ from PyQt5.Qt import QSoundEffect, QUrl
 import math
 import random
 
-from toolbox import vectorToAngle, angleToVector
+from toolbox import vectorToAngle, angleToVector, posToTileIndex, onPlayground
+from levelLoader import Tile
 
 # abstract
 class Gun(QObject):
@@ -53,7 +54,7 @@ class Handgun(Gun):
         super().__init__(owner, baseSpeed, timeToReload, bulletRadius=5)
 
         self.soundEffect = QSoundEffect(self)
-        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/handgun.wav"))
+        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/shoot.wav"))
         self.soundEffect.setVolume(0.25)
 
     def update(self, deltaTime, levelMatrix, robotsDict):
@@ -143,9 +144,11 @@ class Bullet:
 
     # Returns true if the bullet collides with the world
     def collidesWithWorld(self, levelMatrix):
-        # TODO: Implement correctly
 
-        if self.x > 1000 or self.x < 0 or self.y > 1000 or self.y < 0:
+        if not onPlayground(self.pos):
+            return True
+
+        if posToTileIndex(self.pos, levelMatrix) == Tile.wall:
             return True
 
         return False
