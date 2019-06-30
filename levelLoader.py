@@ -2,9 +2,17 @@ from PyQt5.QtCore import QRectF
 from enum import Enum
 
 class Tile(Enum):
-    floor = 0
+    grass = 0
     wall = 1
-    sand = 2
+    stone = 2
+    sand = 3
+    dark_sand = 4
+    sand_stone = 5
+    snow = 6
+    ice = 7
+
+    def walkable(self):
+        return self in [Tile.grass, Tile.sand, Tile.dark_sand, Tile.snow, Tile.stone]
 
 class LevelLoader:
 
@@ -23,15 +31,12 @@ class LevelLoader:
             line = f.readline()
             row = []
             for c in line:
-                if c == '0':
-                    row.append(Tile.floor)
-                elif c == '1':
-                    row.append(Tile.wall)
-                elif c == '2':
-                    row.append(Tile.sand)
-                elif c == '\n':
-                    pass
-                else:
+                if c == '\n':
+                    continue
+                try:
+                    tileNum = int(c)
+                    row.append(Tile(tileNum))
+                except:
                     raise Exception('Unknown symbol: "' + c + '" in level "' + filePath + '"')
             levelMatrix.append(row)
 

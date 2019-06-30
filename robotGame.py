@@ -48,9 +48,7 @@ class RobotGame(QWidget):
 
     def initTextures(self):
 
-        self.tileTextures = {Tile.floor : QPixmap('textures/grass.png'),
-                             Tile.wall  : QPixmap('textures/wall.png'),
-                             Tile.sand  : QPixmap('textures/sand.png')}
+        self.tileTextures = {tileEnum : QPixmap('textures/' + tileName + '.png') for tileName, tileEnum in Tile.__members__.items()}
 
     def initUI(self):
 
