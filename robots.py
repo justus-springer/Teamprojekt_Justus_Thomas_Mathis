@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtGui import QPainter, QVector2D, QColor, QPainterPath, QPolygonF, QBrush, QPen, QFont
+from PyQt5.QtGui import QPainter, QVector2D, QColor, QPainterPath, QPolygonF, QBrush, QPen, QFont, QPixmap
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRectF, QPointF
 import math
 import random
@@ -38,7 +38,7 @@ class BaseRobot(QObject):
     robotsInViewSignal = pyqtSignal(dict)
     wallsInViewSignal = pyqtSignal(list)
 
-    def __init__(self, id, x, y, aov, v_max, r = 30, alpha = 0, color = QColor(255,255,255)):
+    def __init__(self, id, x, y, aov, v_max, r = 30, alpha = 0, texturePath = "textures/robot_base.png"):
 
         super().__init__()
 
@@ -47,7 +47,7 @@ class BaseRobot(QObject):
         self.aov = aov
         self.r = r
         self.alpha = alpha # unit: degrees
-        self.color = color
+        self.texture = QPixmap(texturePath)
 
         self.a = 0 # unit: pixels/second^2
         self.a_max = A_MAX # unit: pixels/second^2
@@ -79,13 +79,13 @@ class BaseRobot(QObject):
 
     def draw(self, qp):
 
-        qp.setBrush(self.color)
-        qp.setPen(Qt.black)
-        qp.drawEllipse(self.boundingRect())
-
-        vec = self.r * self.direction()
-
-        qp.drawLine(self.x, self.y, self.x + vec.x(), self.y + vec.y())
+        qp.save()
+        qp.translate(self.x, self.y)
+        qp.rotate(self.alpha)
+        source = QRectF(0, 0, 64, 64)
+        target = QRectF(-self.r, -self.r, 2*self.r, 2*self.r)
+        qp.drawPixmap(target, self.texture, source)
+        qp.restore()
 
         # Draw your id
         qp.setPen(QPen(Qt.black))
@@ -188,7 +188,7 @@ class BaseRobot(QObject):
         obstacles = []
         for y in range(y_min, y_max):
             for x in range(x_min, x_max):
-                if levelMatrix[y][x] == Tile.wall:
+                if not levelMatrix[y][x].walkable():
                     obstacles.append(QRectF(x * 10, y * 10, 10, 10))
 
         return obstacles
@@ -292,7 +292,7 @@ class ChaserRobot(BaseRobot):
     scoreSignal = pyqtSignal(int)
 
     def __init__(self, id, spawn_x, spawn_y, targetId, controllerClass):
-        super().__init__(id, spawn_x, spawn_y, 30, 150, 30, 0, Qt.gray)
+        super().__init__(id, spawn_x, spawn_y, 30, 150, 30, 0, "textures/robot_gray.png")
         self.spawn_x = spawn_x
         self.spawn_y = spawn_y
 
@@ -320,7 +320,7 @@ class ChaserRobot(BaseRobot):
 class RunnerRobot(BaseRobot):
 
     def __init__(self, id, x, y, chaserIds):
-        super().__init__(id, x, y, 50, 130, 25, 0, Qt.green)
+        super().__init__(id, x, y, 50, 130, 25, 0, "textures/robot_blue.png")
         self.controller = control.RunController(id, chaserIds)
 
     def drawDebugLines(self, qp):
@@ -335,5 +335,5 @@ class RunnerRobot(BaseRobot):
 class TestRobot(BaseRobot):
 
     def __init__(self, id, x, y):
-        super().__init__(id, x, y, 30, 200, 30, 0, Qt.red)
+        super().__init__(id, x, y, 30, 200, 30, 0, "textures/robot_red.png")
         self.controller = control.PlayerController(id)
