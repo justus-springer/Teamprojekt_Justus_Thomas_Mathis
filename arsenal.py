@@ -6,8 +6,13 @@ import random
 
 from toolbox import vectorToAngle, angleToVector, posToTileIndex, onPlayground
 from levelLoader import Tile
+from bar import Bar
 
 # abstract
+
+AMMOBARBUFFER = 2
+AMMOBARHEIGHT = 5
+
 class Gun(QObject):
 
     # This will be emitted when the handgun hits another robot. It transmits the id of the robot that has been hit
@@ -26,6 +31,7 @@ class Gun(QObject):
         self.reloadTimer = 0
 
         self.bullets = []
+        self.ammoBar = Bar(0, 0, Qt.blue,self.pos)
 
     def update(self, deltaTime, levelMatrix, robotsDict):
         self.pos = self.owner.pos
@@ -33,10 +39,17 @@ class Gun(QObject):
         # decrement reload timer. If it hits zero, the gun can shoot again
         if not self.readyToFire():
             self.reloadTimer -= deltaTime
+            #update ammobar
+            new_width = (self.timeToReload - self.reloadTimer) / self.timeToReload * self.owner.r * 2
+            self.ammoBar.update(new_width, AMMOBARHEIGHT, Qt.blue, QVector2D(self.pos.x() - self.owner.r, self.pos.y() + self.owner.r + AMMOBARBUFFER))
+        else:
+            self.ammoBar.update(0, AMMOBARHEIGHT, Qt.blue, QVector2D(self.pos.x(), self.pos.y() + 30))
 
     def draw(self, qp):
         for bullet in self.bullets:
             bullet.draw(qp)
+        if not self.readyToFire():
+            self.ammoBar.drawBar(qp)
 
     # abstract
     def fire(self, direction):
@@ -148,7 +161,7 @@ class Bullet:
         if not onPlayground(self.pos):
             return True
 
-        if not posToTileIndex(self.pos, levelMatrix).walkable():
+        if posToTileIndex(self.pos, levelMatrix) == Tile.wall:
             return True
 
         return False
