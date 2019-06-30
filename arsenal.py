@@ -148,7 +148,7 @@ class Bullet:
         if not onPlayground(self.pos):
             return True
 
-        if posToTileIndex(self.pos, levelMatrix) == Tile.wall:
+        if not posToTileIndex(self.pos, levelMatrix).walkable():
             return True
 
         return False
