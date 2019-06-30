@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QR
 from levelLoader import LevelLoader, Tile
 import robots
 import control
-from arsenal import Handgun, Shotgun
+from arsenal import Handgun, Shotgun, Grenade
 
 DEBUG_LINES = False
 
@@ -72,9 +72,11 @@ class RobotGame(QWidget):
         testRobot = robots.TestRobot(1, 500, 500)
         handgun = Handgun(testRobot, 500, 0.5)
         shotgun = Shotgun(testRobot, 200, 1, 10)
+        grenade = Grenade(testRobot, 200, 2, 10)
         handgun.hitSignal.connect(self.hitSignalSlot)
         shotgun.hitSignal.connect(self.hitSignalSlot)
-        testRobot.equipWithGuns(handgun, shotgun)
+        grenade.hitSignal.connect(self.hitSignalSlot)
+        testRobot.equipWithGuns(handgun, shotgun, grenade)
 
         chaser = robots.ChaserRobot(2, 500, 200, 1, control.ChaseDirectlyController)
         self.setTargetSignal.connect(testRobot.controller.setTargetSlot)

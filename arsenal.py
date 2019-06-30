@@ -32,6 +32,8 @@ class Gun(QObject):
 
         self.bullets = []
         self.ammoBar = Bar(0, 0, Qt.blue,self.pos)
+        self.explosion = []
+
 
     def update(self, deltaTime, levelMatrix, robotsDict):
         self.pos = self.owner.pos
@@ -47,6 +49,8 @@ class Gun(QObject):
 
     def draw(self, qp):
         for bullet in self.bullets:
+            bullet.draw(qp)
+        for bullet in self.explosion:
             bullet.draw(qp)
         if not self.readyToFire():
             self.ammoBar.drawBar(qp)
@@ -68,7 +72,7 @@ class Handgun(Gun):
 
         self.soundEffect = QSoundEffect(self)
         self.soundEffect.setSource(QUrl.fromLocalFile("sounds/shoot.wav"))
-        self.soundEffect.setVolume(0.25)
+        self.soundEffect.setVolume(0.4)
 
     def update(self, deltaTime, levelMatrix, robotsDict):
         super().update(deltaTime, levelMatrix, robotsDict)
@@ -105,7 +109,7 @@ class Shotgun(Gun):
 
         self.soundEffect = QSoundEffect(self)
         self.soundEffect.setSource(QUrl.fromLocalFile("sounds/shotgun.wav"))
-        self.soundEffect.setVolume(0.25)
+        self.soundEffect.setVolume(0.1)
 
     def update(self, deltaTime, levelMatrix, robotsDict):
         super().update(deltaTime, levelMatrix, robotsDict)
@@ -138,6 +142,79 @@ class Shotgun(Gun):
 
             self.resetTimer()
             self.soundEffect.play()
+
+
+class Grenade(Gun):
+
+    def __init__(self, owner, baseSpeed, timeToReload, bulletsPerShot):
+        super().__init__(owner, baseSpeed, timeToReload, bulletRadius=6)
+
+        self.bulletsPerShot = bulletsPerShot
+
+        self.soundEffect_launcher = QSoundEffect(self)
+        self.soundEffect_launcher.setSource(QUrl.fromLocalFile("sounds/grenade_launcher.wav"))
+        self.soundEffect_launcher.setVolume(0.1)
+
+        self.soundEffect_explosion = QSoundEffect(self)
+        self.soundEffect_explosion.setSource(QUrl.fromLocalFile("sounds/explosion.wav"))
+        self.soundEffect_explosion.setVolume(1.5)
+
+    def update(self, deltaTime, levelMatrix, robotsDict):
+        super().update(deltaTime, levelMatrix, robotsDict)
+
+
+        for bullet in self.bullets:
+            bullet.update(deltaTime, levelMatrix, robotsDict)
+            if bullet.isTooOld() or bullet.collidesWithWorld(levelMatrix):
+                self.explode()
+                self.bullets.remove(bullet)
+                del bullet
+                continue
+
+            robot = bullet.collidesWithRobots(robotsDict)
+            if robot != None:
+                self.hitSignal.emit(robot.id)
+                self.bullets.remove(bullet)
+                del bullet
+
+
+        for bullet in self.explosion:
+            bullet.update(deltaTime, levelMatrix, robotsDict)
+            if bullet.isTooOld() or bullet.collidesWithWorld(levelMatrix):
+                self.explosion.remove(bullet)
+                del bullet
+                continue
+
+            robot = bullet.collidesWithRobots(robotsDict)
+            if robot != None:
+                self.hitSignal.emit(robot.id)
+                self.explosion.remove(bullet)
+                del bullet
+                continue
+
+
+    def fire(self, direction):
+        if self.readyToFire():
+            bulletSpeed = self.baseSpeed + self.owner.v
+            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius, 1)
+            self.bullets.append(bullet)
+
+            self.resetTimer()
+            self.soundEffect_launcher.play()
+
+    def explode(self):
+        MAX_SCATTER_ANGLE = 360
+        MAX_SCATTER_SPEED = 20
+
+        bulletSpeed = self.baseSpeed + self.owner.v
+        baseAngle = 0
+        for i in range(self.bulletsPerShot):
+             scatteredAngle = baseAngle + random.uniform(-MAX_SCATTER_ANGLE, MAX_SCATTER_ANGLE)
+             scatteredDirection = angleToVector(scatteredAngle)
+             scatteredSpeed = bulletSpeed + random.uniform(-MAX_SCATTER_SPEED, MAX_SCATTER_SPEED)
+             self.explosion.append(Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, 0.5))
+
+        self.soundEffect_explosion.play()
 
 
 class Bullet:
