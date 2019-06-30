@@ -68,3 +68,12 @@ def keyToNumber(keyId):
             return i
 
     return 0
+
+# Pos has to be on the playground  or its out of bound
+def posToTileIndex(pos,levelMatrix):
+    return levelMatrix[int(pos.y() // 10)][int(pos.x() // 10)]
+
+def onPlayground(pos):
+    if pos.x() > 1000 or pos.x() < 0 or pos.y() > 1000 or pos.y() < 0:
+        return False
+    return True
