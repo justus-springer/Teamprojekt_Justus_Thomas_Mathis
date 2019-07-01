@@ -1,10 +1,10 @@
 from PyQt5.QtCore import QThread, pyqtSignal, QDateTime
-from PyQt5.Qt import QVector2D
+from PyQt5.Qt import QVector2D, Qt
 import random
 import math
 
 import robots
-from toolbox import sumvectors
+from toolbox import sumvectors, isNumberKey, keyToNumber
 
 DAEMON_SLEEP = 50
 
@@ -13,6 +13,9 @@ class Controller(QThread):
     # This will be emittet whenevery the controller wants the robot to do a full stop
     fullStopSignal = pyqtSignal()
     fullStopRotationSignal = pyqtSignal()
+
+    shootSignal = pyqtSignal()
+    switchToGunSignal = pyqtSignal(int)
 
     def __init__(self, robotId):
         super().__init__()
@@ -136,22 +139,32 @@ class Controller(QThread):
     def receiveWallsInView(self, wallsInView):
         self.wallsInView = wallsInView
 
-class TargetController(Controller):
+class PlayerController(Controller):
 
     def __init__(self, robotId):
         super().__init__(robotId)
         self.target_x = 0
         self.target_y = 0
 
-    def setTarget(self, target_x, target_y):
-        self.target_x = target_x
-        self.target_y = target_y
-
     def run(self):
 
         while True:
             self.moveTo(self.target_x, self.target_y)
             self.msleep(DAEMON_SLEEP)
+
+    ### Slots
+
+    def setTargetSlot(self, target_x, target_y):
+        self.target_x = target_x
+        self.target_y = target_y
+
+    def keyPressedSlot(self, keyId):
+        if keyId == Qt.Key_Space:
+            self.shootSignal.emit()
+        elif isNumberKey(keyId):
+            # shift one, because number pad starts at 1
+            self.switchToGunSignal.emit(keyToNumber(keyId) - 1)
+
 
 # abstract
 class ChaseController(Controller):
