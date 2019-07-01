@@ -1,12 +1,14 @@
 import sys
 from PyQt5.QtGui import QPainter, QVector2D, QColor, QPainterPath, QPolygonF, QBrush, QPen, QFont, QPixmap
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QRectF, QPointF
+from PyQt5.Qt import QSoundEffect, QUrl
 import math
 import random
 
 import robotGame, control
 from toolbox import minmax, circleCircleCollision, circleRectCollision
 from levelLoader import Tile
+from bar import HealthBar
 
 # Epsilon values represent the smallest reasonable value greater than 0
 # Any speed/distance below their epsilon value should be interpreted as practically 0
@@ -38,12 +40,13 @@ class BaseRobot(QObject):
     robotsInViewSignal = pyqtSignal(dict)
     wallsInViewSignal = pyqtSignal(list)
 
-    def __init__(self, id, x, y, aov, v_max, r = 30, alpha = 0, texturePath = "textures/robot_base.png"):
+    def __init__(self, id, spawn_x, spawn_y, aov, v_max, maxHealth, r = 30, alpha = 0, texturePath = "textures/robot_base.png"):
 
         super().__init__()
 
         self.id = id
-        self.pos = QVector2D(x, y)
+        self.pos = QVector2D(spawn_x, spawn_y)
+        self.spawn = QVector2D(spawn_x, spawn_y)
         self.aov = aov
         self.r = r
         self.alpha = alpha # unit: degrees
@@ -61,6 +64,14 @@ class BaseRobot(QObject):
 
         self.guns = []
         self.selected_gun = None
+
+        self.maxHealth = maxHealth
+        self.health = maxHealth
+        self.healthBar = HealthBar(maxHealth)
+
+        self.deathSound = QSoundEffect(self)
+        self.deathSound.setSource(QUrl.fromLocalFile("sounds/death.wav"))
+        self.deathSound.setVolume(0.4)
 
     def equipWithGuns(self, *guns):
         self.guns = guns
@@ -94,6 +105,8 @@ class BaseRobot(QObject):
 
         for gun in self.guns:
             gun.draw(qp)
+
+        self.healthBar.draw(qp)
 
     def drawDebugLines(self, qp):
         qp.setBrush(QBrush(Qt.NoBrush))
@@ -132,6 +145,17 @@ class BaseRobot(QObject):
 
         for gun in self.guns:
             gun.update(deltaTime, levelMatrix, robotsDict)
+
+        # Health bar stuff
+        healthBarPosition = self.pos - QVector2D(0, self.r + 10)
+        self.healthBar.update(self.health, healthBarPosition)
+        color_g = int(255 * self.health / self.maxHealth)
+        color_r = 255 - color_g
+        self.healthBar.setColor(QColor(color_r, color_g, 0))
+
+        # Check if you are dead
+        if self.health <= 0:
+            self.respawn()
 
     def collideWithWalls(self, obstacles):
 
@@ -220,10 +244,14 @@ class BaseRobot(QObject):
         if index < len(self.guns):
             self.selected_gun = self.guns[index]
 
+    def dealDamage(self, damage):
+        self.health -= damage
+
     def respawn(self):
-        spawn_x = random.uniform(200, 800)
-        spawn_y = random.uniform(200, 800)
-        self.pos = QVector2D(spawn_x, spawn_y)
+        self.pos.setX(self.spawn.x())
+        self.pos.setY(self.spawn.y())
+        self.health = self.maxHealth
+        self.deathSound.play()
 
 
     ### properties and helperfunction
@@ -252,6 +280,7 @@ class BaseRobot(QObject):
 
     def translate(self, x, y):
         self.pos += QVector2D(x, y)
+
 
     ### properties
 
@@ -291,10 +320,8 @@ class ChaserRobot(BaseRobot):
 
     scoreSignal = pyqtSignal(int)
 
-    def __init__(self, id, spawn_x, spawn_y, targetId, controllerClass):
-        super().__init__(id, spawn_x, spawn_y, 30, 150, 30, 0, "textures/robot_gray.png")
-        self.spawn_x = spawn_x
-        self.spawn_y = spawn_y
+    def __init__(self, id, spawn_x, spawn_y, targetId, maxHealth, controllerClass):
+        super().__init__(id, spawn_x, spawn_y, 30, 80, maxHealth, 30, 0, "textures/robot_gray.png")
 
         self.controller = controllerClass(id, targetId)
 
@@ -311,11 +338,6 @@ class ChaserRobot(BaseRobot):
         p = self.controller.aimPos.toPointF()
         qp.drawEllipse(p, 5, 5)
 
-    def teleportToFarthestPoint(self, robot_pos):
-        middle = QVector2D(robotGame.WINDOW_SIZE / 2, robotGame.WINDOW_SIZE / 2)
-        vec = middle - robot_pos
-        vec *= 400 / vec.length()
-        self.pos = middle + vec
 
 class RunnerRobot(BaseRobot):
 
@@ -335,5 +357,5 @@ class RunnerRobot(BaseRobot):
 class TestRobot(BaseRobot):
 
     def __init__(self, id, x, y):
-        super().__init__(id, x, y, 30, 200, 30, 0, "textures/robot_red.png")
+        super().__init__(id, x, y, 30, 200, 500, 30, 0, "textures/robot_red.png")
         self.controller = control.PlayerController(id)
