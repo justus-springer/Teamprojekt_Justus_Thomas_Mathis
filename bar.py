@@ -25,6 +25,23 @@ class Bar:
         self.color = new_color
         self.pos = new_pos
 
+# Reload Display Options
+
+HEIGHT = 5
+COLOR = Qt.blue
+Y_BUFFER = 2
+
+class ReloadDisplay(Bar):
+    def __init__(self, pos):
+        self.pos = pos
+        self.width = 0
+        self.height = HEIGHT
+        self.color = COLOR
+
+    def update(self, new_width, new_pos):
+        self.width = new_width
+        self.pos = QVector2D(new_pos.x(), new_pos.y() + Y_BUFFER)
+
 
 
 
