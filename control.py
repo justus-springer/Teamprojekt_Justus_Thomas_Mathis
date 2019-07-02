@@ -31,6 +31,7 @@ class Controller(QThread):
         self.a_alpha_max = 0
         self.robotsInView = {}
         self.wallsInView = {}
+        self.readyToFire = False
 
         # These will be fetched by the main program
         self.a = 0
@@ -125,12 +126,13 @@ class Controller(QThread):
         self.v_alpha_max = v_alpha_max
 
     # This will be called every tick
-    def receiveRobotInfo(self, x, y, alpha, v, v_alpha):
+    def receiveRobotInfo(self, x, y, alpha, v, v_alpha, readyToFire):
         self.x = x
         self.y = y
         self.alpha = alpha
         self.v = v
         self.v_alpha = v_alpha
+        self.readyToFire = readyToFire
 
     # THis will be called once every 10 ticks
     def receiveRobotsInView(self, robotsInView):
@@ -211,6 +213,9 @@ class ChaseController(Controller):
 
             elif self.state == "Chasing":
                 self.moveTo(self.aimPos.x(), self.aimPos.y())
+                if self.readyToFire:
+                    self.shootSignal.emit()
+
 
             self.msleep(DAEMON_SLEEP)
 
@@ -239,9 +244,11 @@ class ChaseGuardController(ChaseController):
     def computeAim(self):
         middle = QVector2D(500, 500)
         delta_vec = middle - self.lastSighting['pos']
-        delta_vec *= 200 / delta_vec.length()
-
-        return self.lastSighting['pos'] + delta_vec
+        if delta_vec.length() != 0:
+            delta_vec *= 200 / delta_vec.length()
+            return self.lastSighting['pos'] + delta_vec
+        else:
+            return self.lastSighting['pos']
 
 
 class RunController(Controller):

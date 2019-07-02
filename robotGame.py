@@ -6,9 +6,10 @@ from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QR
 from levelLoader import LevelLoader, Tile
 import robots
 import control
-from arsenal import Handgun, Shotgun, Grenade
+from arsenal import Handgun, Shotgun, GrenadeLauncher
 
 DEBUG_LINES = False
+GOD_MODE = True
 
 #Window options
 
@@ -16,7 +17,6 @@ WINDOW_SIZE = 1000
 START_WINDOW_X_POS = 100
 START_WINDOW_Y_POS = 50
 WINDOW_TITLE = "Cooles Spiel"
-SCOREBOARD_FONT = QFont("Calibri", 15)
 
 # Game constants
 
@@ -40,11 +40,10 @@ class RobotGame(QWidget):
         # Load level data from file
         self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
 
-        self.scoreBoard = ScoreBoard()
         self.initUI()
         self.initTextures()
-        self.initTimer()
         self.initRobots()
+        self.initTimer()
 
     def initTextures(self):
 
@@ -69,29 +68,44 @@ class RobotGame(QWidget):
 
     def initRobots(self):
 
+        self.robots = {}
+
         testRobot = robots.TestRobot(1, 500, 500)
-        handgun = Handgun(testRobot, 500, 0.5)
-        shotgun = Shotgun(testRobot, 200, 1, 10)
-        grenade = Grenade(testRobot, 200, 2, 10)
+
+        if GOD_MODE:
+            handgun = Handgun(testRobot, 500, 0.1, 80)
+            shotgun = Shotgun(testRobot, 200, 0.1, 10, 20)
+            grenade = GrenadeLauncher(testRobot, 200, 0.1, 10, 100)
+        else:
+            handgun = Handgun(testRobot, 500, 1, 80)
+            shotgun = Shotgun(testRobot, 200, 2, 10, 20)
+            grenade = GrenadeLauncher(testRobot, 200, 3, 10, 100)
+
         handgun.hitSignal.connect(self.hitSignalSlot)
         shotgun.hitSignal.connect(self.hitSignalSlot)
         grenade.hitSignal.connect(self.hitSignalSlot)
         testRobot.equipWithGuns(handgun, shotgun, grenade)
-
-        chaser = robots.ChaserRobot(2, 500, 200, 1, control.ChaseDirectlyController)
         self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
         self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
 
-        #self.robots = {robot.id: robot for robot in [testRobot, chaser]}
-        self.robots = {robot.id : robot for robot in [testRobot, chaser]}
+        chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
+        handgun1 = Handgun(chaser1, 500, 2, 80)
+        chaser1.equipWithGuns(handgun1)
+        handgun1.hitSignal.connect(self.hitSignalSlot)
+        chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
+        handgun2 = Handgun(chaser2, 500, 2, 80)
+        chaser2.equipWithGuns(handgun2)
+        handgun2.hitSignal.connect(self.hitSignalSlot)
+        chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
+        handgun3 = Handgun(chaser3, 500, 2, 80)
+        chaser3.equipWithGuns(handgun3)
+        handgun3.hitSignal.connect(self.hitSignalSlot)
+
+        self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
 
         for robot in self.robots.values():
 
             robot.connectSignals()
-
-            # connect scoreboard signals of chasers
-            if isinstance(robot, robots.ChaserRobot):
-                robot.scoreSignal.connect(self.scoreBoard.scoreSignalSlot)
 
             # Tell the controller the specs of the robot (a_max and a_alpha_max)
             robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max, robot.v_max, robot.v_alpha_max)
@@ -104,10 +118,8 @@ class RobotGame(QWidget):
         qp = QPainter()
         qp.begin(self)
         self.drawTiles(event, qp)
-        self.scoreBoard.draw(qp)
         for robot in self.robots.values():
             robot.draw(qp)
-        self.scoreBoard.draw(qp)
 
         if DEBUG_LINES:
             self.drawObstaclesDebugLines(qp)
@@ -139,18 +151,19 @@ class RobotGame(QWidget):
         deltaTimeMillis = elapsed - self.previous
         deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
 
-        # Update robots
-        for robot in self.robots.values():
-            robot.update(deltaTime, self.levelMatrix, self.robots)
-
-        # send positions data every 5th tick
-        if self.tickCounter % 5 == 0:
+        if deltaTime < 0.5:
+            # Update robots
             for robot in self.robots.values():
-                self.emitRobotSensorData(robot)
+                robot.update(deltaTime, self.levelMatrix, self.robots)
+
+            # send positions data every 5th tick
+            if self.tickCounter % 5 == 0:
+                for robot in self.robots.values():
+                    self.emitRobotSensorData(robot)
 
 
-        # Update visuals
-        self.update()
+            # Update visuals
+            self.update()
 
         self.previous = elapsed
 
@@ -195,31 +208,8 @@ class RobotGame(QWidget):
     ### Slots
 
     # Will be called whenever a robot kills another robot. id is the id of the robots that has to be killed
-    def hitSignalSlot(self, id):
-        self.robots[id].respawn()
-
-class ScoreBoard(QObject):
-
-    def __init__(self):
-        super().__init__()
-        self.scores = {}
-
-    def draw(self, qp):
-
-        qp.setPen(Qt.black)
-        qp.setFont(SCOREBOARD_FONT)
-        text = "SCOREBOARD:\n"
-        for id in self.scores:
-            text += "Chaser {0}: {1}\n".format(id, self.scores[id])
-
-        qp.drawText(QRectF(0, 0, WINDOW_SIZE, 200), Qt.AlignCenter, text)
-
-    ### Slots
-    def scoreSignalSlot(self, id):
-        if id in self.scores:
-            self.scores[id] += 1
-        else:
-            self.scores[id] = 1
+    def hitSignalSlot(self, id, damage):
+        self.robots[id].dealDamage(damage)
 
 if __name__ == '__main__':
 

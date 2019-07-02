@@ -6,16 +6,17 @@ import random
 
 from toolbox import vectorToAngle, angleToVector, posToTileIndex, onPlayground
 from levelLoader import Tile
-from bar import ReloadDisplay
+from bar import Bar, ReloadBar
 
 # abstract
 
 class Gun(QObject):
 
-    # This will be emitted when the handgun hits another robot. It transmits the id of the robot that has been hit
-    hitSignal = pyqtSignal(int)
+    # This will be emitted when the handgun hits another robot.
+    # It transmits the id of the robot being hit and the amount of damage to be dealt
+    hitSignal = pyqtSignal(int, float)
 
-    def __init__(self, owner, baseSpeed, timeToReload, bulletRadius):
+    def __init__(self, owner, baseSpeed, timeToReload, damage, bulletRadius):
         super().__init__()
 
         self.owner = owner
@@ -24,12 +25,12 @@ class Gun(QObject):
         self.y = owner.y
         self.baseSpeed = baseSpeed
         self.timeToReload = timeToReload # seconds
+        self.damage = damage
         self.bulletRadius = bulletRadius
         self.reloadTimer = 0
 
         self.bullets = []
-        self.reloadDisplay = ReloadDisplay(self.pos)
-        self.explosion = []
+        self.reloadDisplay = ReloadBar(timeToReload, self.owner.r * 2)
 
 
     def update(self, deltaTime, levelMatrix, robotsDict):
@@ -38,18 +39,16 @@ class Gun(QObject):
         # decrement reload timer. If it hits zero, the gun can shoot again
         if not self.readyToFire():
             self.reloadTimer -= deltaTime
-            new_width = (self.timeToReload - self.reloadTimer) / self.timeToReload * self.owner.r * 2
-            self.reloadDisplay.update(new_width, QVector2D(self.pos.x() - self.owner.r, self.pos.y() + self.owner.r))
-        else:
-            self.reloadDisplay.update(0, QVector2D(self.pos.x(), self.pos.y()))
+
+        reloadDisplayPosition = QVector2D(self.pos.x(), self.pos.y() + self.owner.r)
+        reloadDisplayValue = self.timeToReload - self.reloadTimer
+        self.reloadDisplay.update(reloadDisplayValue, reloadDisplayPosition)
 
     def draw(self, qp):
         for bullet in self.bullets:
             bullet.draw(qp)
-        for bullet in self.explosion:
-            bullet.draw(qp)
         if not self.readyToFire():
-            self.reloadDisplay.drawBar(qp)
+            self.reloadDisplay.draw(qp)
 
     # abstract
     def fire(self, direction):
@@ -63,11 +62,11 @@ class Gun(QObject):
 
 class Handgun(Gun):
 
-    def __init__(self, owner, baseSpeed, timeToReload):
-        super().__init__(owner, baseSpeed, timeToReload, bulletRadius=5)
+    def __init__(self, owner, baseSpeed, timeToReload, damage):
+        super().__init__(owner, baseSpeed, timeToReload, damage, bulletRadius=5)
 
         self.soundEffect = QSoundEffect(self)
-        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/shoot.wav"))
+        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/handgun.wav"))
         self.soundEffect.setVolume(0.4)
 
     def update(self, deltaTime, levelMatrix, robotsDict):
@@ -82,7 +81,7 @@ class Handgun(Gun):
 
             robot = bullet.collidesWithRobots(robotsDict)
             if robot != None:
-                self.hitSignal.emit(robot.id)
+                self.hitSignal.emit(robot.id, self.damage)
                 self.bullets.remove(bullet)
                 del bullet
 
@@ -95,11 +94,10 @@ class Handgun(Gun):
             self.resetTimer()
             self.soundEffect.play()
 
-
 class Shotgun(Gun):
 
-    def __init__(self, owner, baseSpeed, timeToReload, bulletsPerShot):
-        super().__init__(owner, baseSpeed, timeToReload, bulletRadius=3)
+    def __init__(self, owner, baseSpeed, timeToReload, damage, bulletsPerShot):
+        super().__init__(owner, baseSpeed, timeToReload, damage, bulletRadius=3)
 
         self.bulletsPerShot = bulletsPerShot
 
@@ -119,7 +117,7 @@ class Shotgun(Gun):
 
             robot = bullet.collidesWithRobots(robotsDict)
             if robot != None:
-                self.hitSignal.emit(robot.id)
+                self.hitSignal.emit(robot.id, self.damage)
                 self.bullets.remove(bullet)
                 del bullet
 
@@ -140,12 +138,13 @@ class Shotgun(Gun):
             self.soundEffect.play()
 
 
-class Grenade(Gun):
+class GrenadeLauncher(Gun):
 
-    def __init__(self, owner, baseSpeed, timeToReload, bulletsPerShot):
-        super().__init__(owner, baseSpeed, timeToReload, bulletRadius=6)
+    def __init__(self, owner, baseSpeed, timeToReload, damage, bulletsPerShot):
+        super().__init__(owner, baseSpeed, timeToReload, damage, bulletRadius=6)
 
         self.bulletsPerShot = bulletsPerShot
+        self.explosionBullets = []
 
         self.soundEffect_launcher = QSoundEffect(self)
         self.soundEffect_launcher.setSource(QUrl.fromLocalFile("sounds/grenade_launcher.wav"))
@@ -169,25 +168,31 @@ class Grenade(Gun):
 
             robot = bullet.collidesWithRobots(robotsDict)
             if robot != None:
-                self.hitSignal.emit(robot.id)
+                self.explode()
+                self.hitSignal.emit(robot.id, self.damage)
                 self.bullets.remove(bullet)
                 del bullet
 
 
-        for bullet in self.explosion:
+        for bullet in self.explosionBullets:
             bullet.update(deltaTime, levelMatrix, robotsDict)
             if bullet.isTooOld() or bullet.collidesWithWorld(levelMatrix):
-                self.explosion.remove(bullet)
+                self.explosionBullets.remove(bullet)
                 del bullet
                 continue
 
             robot = bullet.collidesWithRobots(robotsDict)
             if robot != None:
-                self.hitSignal.emit(robot.id)
-                self.explosion.remove(bullet)
+                self.hitSignal.emit(robot.id, self.damage)
+                self.explosionBullets.remove(bullet)
                 del bullet
                 continue
 
+    def draw(self, qp):
+        super().draw(qp)
+
+        for bullet in self.explosionBullets:
+            bullet.draw(qp)
 
     def fire(self, direction):
         if self.readyToFire():
@@ -201,14 +206,15 @@ class Grenade(Gun):
     def explode(self):
         MAX_SCATTER_ANGLE = 360
         MAX_SCATTER_SPEED = 20
+        BULLET_SPEED = 300
+        BULLET_MAX_AGE = 0.5
 
-        bulletSpeed = self.baseSpeed + self.owner.v
-        baseAngle = 0
         for i in range(self.bulletsPerShot):
-             scatteredAngle = baseAngle + random.uniform(-MAX_SCATTER_ANGLE, MAX_SCATTER_ANGLE)
+             scatteredAngle = random.uniform(-MAX_SCATTER_ANGLE, MAX_SCATTER_ANGLE)
              scatteredDirection = angleToVector(scatteredAngle)
-             scatteredSpeed = bulletSpeed + random.uniform(-MAX_SCATTER_SPEED, MAX_SCATTER_SPEED)
-             self.explosion.append(Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, 0.5))
+             scatteredSpeed = BULLET_SPEED + random.uniform(-MAX_SCATTER_SPEED, MAX_SCATTER_SPEED)
+             newBullet = Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, BULLET_MAX_AGE)
+             self.explosionBullets.append(Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, 0.5))
 
         self.soundEffect_explosion.play()
 
@@ -231,10 +237,7 @@ class Bullet:
     # Returns true if the bullet collides with the world
     def collidesWithWorld(self, levelMatrix):
 
-        if not onPlayground(self.pos) or posToTileIndex(self.pos, levelMatrix) == Tile.wall:
-            return True
-
-        return False
+        return not onPlayground(self.pos) or not posToTileIndex(self.pos, levelMatrix).walkable()
 
     # If the bullet collides with a robot, it returns that robot
     # Otherwise returns None
