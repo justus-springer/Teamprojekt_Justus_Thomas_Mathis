@@ -30,14 +30,13 @@ class Bar:
 
 # Reload Display Options
 
-RELOAD_BAR_MAX_WIDTH = 60
 RELOAD_BAR_HEIGHT = 5
 RELOAD_BAR_COLOR = Qt.blue
 RELOAD_BAR_Y_BUFFER = 2
 
 class ReloadBar(Bar):
-    def __init__(self, timeToReload):
-        super().__init__(RELOAD_BAR_MAX_WIDTH, RELOAD_BAR_HEIGHT, 0, timeToReload, RELOAD_BAR_COLOR)
+    def __init__(self, timeToReload, maxWidth):
+        super().__init__(maxWidth, RELOAD_BAR_HEIGHT, 0, timeToReload, RELOAD_BAR_COLOR)
 
     def update(self, new_value, new_pos):
         super().update(new_value, new_pos)

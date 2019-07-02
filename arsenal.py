@@ -30,7 +30,7 @@ class Gun(QObject):
         self.reloadTimer = 0
 
         self.bullets = []
-        self.reloadDisplay = ReloadBar(timeToReload)
+        self.reloadDisplay = ReloadBar(timeToReload, self.owner.r * 2)
 
 
     def update(self, deltaTime, levelMatrix, robotsDict):
@@ -237,10 +237,7 @@ class Bullet:
     # Returns true if the bullet collides with the world
     def collidesWithWorld(self, levelMatrix):
 
-        if not onPlayground(self.pos) or not posToTileIndex(self.pos, levelMatrix).walkable():
-            return True
-
-        return False
+        return not onPlayground(self.pos) or not posToTileIndex(self.pos, levelMatrix).walkable()
 
     # If the bullet collides with a robot, it returns that robot
     # Otherwise returns None

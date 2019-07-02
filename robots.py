@@ -75,9 +75,13 @@ class BaseRobot(QObject):
         self.deathSound.setSource(QUrl.fromLocalFile("sounds/death.wav"))
         self.deathSound.setVolume(0.1)
 
-        self.soundEffect = QSoundEffect(self)
-        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/empty_gun.wav"))
-        self.soundEffect.setVolume(0.1)
+        self.emptyGunSound = QSoundEffect(self)
+        self.emptyGunSound.setSource(QUrl.fromLocalFile("sounds/empty_gun.wav"))
+        self.emptyGunSound.setVolume(0.1)
+
+        self.respawnSound = QSoundEffect(self)
+        self.respawnSound.setSource(QUrl.fromLocalFile("sounds/respawn.wav"))
+        self.respawnSound.setVolume(0.1)
 
     def equipWithGuns(self, *guns):
         self.guns = guns
@@ -107,11 +111,14 @@ class BaseRobot(QObject):
         for gun in self.guns:
             gun.draw(qp)
 
-        self.healthBar.draw(qp)
+        qp.setPen(QPen(Qt.black))
+        qp.setFont(ID_FONT)
+        qp.drawText(self.boundingRect(), Qt.AlignCenter, ' ') # This shold not exist
 
-        if not self.active:
-                qp.setPen(QPen(Qt.black))
-                qp.setFont(ID_FONT)
+        if self.active:
+            self.healthBar.draw(qp)
+        else:
+            qp.drawText(self.boundingRect(), Qt.AlignCenter, str(int(self.timeToRespawn) + 1))
 
     def drawDebugLines(self, qp):
         qp.setBrush(QBrush(Qt.NoBrush))
@@ -243,29 +250,30 @@ class BaseRobot(QObject):
             return False
 
     def shoot(self):
-        if self.selected_gun != None:
+        if self.selected_gun != None and self.active:
             if self.selected_gun.readyToFire():
                 self.selected_gun.fire(self.direction())
             else:
-                self.soundEffect.play()
+                self.emptyGunSound.play()
 
     def swithToGun(self, index):
         if index < len(self.guns):
             self.selected_gun = self.guns[index]
 
     def dealDamage(self, damage):
-        self.health = max(0, self.health - damage)
-        if self.health == 0:
-            self.active = False
-            self.timeToRespawn = 3 # 3 seconds until respawn
-            self.deathSound.play()
-
+        if self.active:
+            self.health = max(0, self.health - damage)
+            if self.health == 0:
+                self.active = False
+                self.timeToRespawn = 3 # 3 seconds until respawn
+                self.deathSound.play()
 
     def respawn(self):
         self.pos.setX(self.spawn.x())
         self.pos.setY(self.spawn.y())
-        self.heatlh = self.maxHealth
+        self.health = self.maxHealth
         self.active = True
+        self.respawnSound.play()
 
 
     ### properties and helperfunction

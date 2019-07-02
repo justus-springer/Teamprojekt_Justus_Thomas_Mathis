@@ -9,6 +9,7 @@ import control
 from arsenal import Handgun, Shotgun, GrenadeLauncher
 
 DEBUG_LINES = False
+GOD_MODE = True
 
 #Window options
 
@@ -41,8 +42,8 @@ class RobotGame(QWidget):
 
         self.initUI()
         self.initTextures()
-        self.initTimer()
         self.initRobots()
+        self.initTimer()
 
     def initTextures(self):
 
@@ -68,14 +69,18 @@ class RobotGame(QWidget):
     def initRobots(self):
 
         self.robots = {}
-        id = 1
 
-        testRobot = robots.TestRobot(id, 500, 500)
-        self.robots[id] = testRobot
-        id += 1
-        handgun = Handgun(testRobot, 500, 0.5, 60)
-        shotgun = Shotgun(testRobot, 200, 1, 10, 20)
-        grenade = GrenadeLauncher(testRobot, 200, 2, 50, 20)
+        testRobot = robots.TestRobot(1, 500, 500)
+
+        if GOD_MODE:
+            handgun = Handgun(testRobot, 500, 0.1, 80)
+            shotgun = Shotgun(testRobot, 200, 0.1, 10, 20)
+            grenade = GrenadeLauncher(testRobot, 200, 0.1, 10, 100)
+        else:
+            handgun = Handgun(testRobot, 500, 1, 80)
+            shotgun = Shotgun(testRobot, 200, 2, 10, 20)
+            grenade = GrenadeLauncher(testRobot, 200, 3, 10, 100)
+
         handgun.hitSignal.connect(self.hitSignalSlot)
         shotgun.hitSignal.connect(self.hitSignalSlot)
         grenade.hitSignal.connect(self.hitSignalSlot)
@@ -83,14 +88,20 @@ class RobotGame(QWidget):
         self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
         self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
 
+        chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
+        handgun1 = Handgun(chaser1, 500, 2, 80)
+        chaser1.equipWithGuns(handgun1)
+        handgun1.hitSignal.connect(self.hitSignalSlot)
+        chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
+        handgun2 = Handgun(chaser2, 500, 2, 80)
+        chaser2.equipWithGuns(handgun2)
+        handgun2.hitSignal.connect(self.hitSignalSlot)
+        chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
+        handgun3 = Handgun(chaser3, 500, 2, 80)
+        chaser3.equipWithGuns(handgun3)
+        handgun3.hitSignal.connect(self.hitSignalSlot)
 
-        spawnPoints = [(200, 500), (500, 200), (500, 800), (800, 500)]
-
-        for x,y in spawnPoints:
-            self.robots[id] = robots.ChaserRobot(id, x, y, 1, 200, control.ChaseDirectlyController)
-            id += 1
-
-        print(len(self.robots))
+        self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
 
         for robot in self.robots.values():
 
@@ -140,8 +151,7 @@ class RobotGame(QWidget):
         deltaTimeMillis = elapsed - self.previous
         deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
 
-        if not deltaTime > 0.5:
-
+        if deltaTime < 0.5:
             # Update robots
             for robot in self.robots.values():
                 robot.update(deltaTime, self.levelMatrix, self.robots)
