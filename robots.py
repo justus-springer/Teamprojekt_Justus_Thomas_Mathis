@@ -71,7 +71,11 @@ class BaseRobot(QObject):
 
         self.deathSound = QSoundEffect(self)
         self.deathSound.setSource(QUrl.fromLocalFile("sounds/death.wav"))
-        self.deathSound.setVolume(0.4)
+        self.deathSound.setVolume(0.1)
+
+        self.soundEffect = QSoundEffect(self)
+        self.soundEffect.setSource(QUrl.fromLocalFile("sounds/empty_gun.wav"))
+        self.soundEffect.setVolume(0.1)
 
     def equipWithGuns(self, *guns):
         self.guns = guns
@@ -239,6 +243,8 @@ class BaseRobot(QObject):
         if self.selected_gun != None:
             if self.selected_gun.readyToFire():
                 self.selected_gun.fire(self.direction())
+            else:
+                self.soundEffect.play()
 
     def swithToGun(self, index):
         if index < len(self.guns):
