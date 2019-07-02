@@ -253,6 +253,8 @@ class ReloadBar(Bar):
 Die Roboter haben zusätzlich noch einen Lebensbalken. Die update Methode vom Roboter sieht nun so aus:
 
 ```python
+
+
 class BaseRobot(QObject):
 
   ...
