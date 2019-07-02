@@ -249,3 +249,53 @@ class ReloadBar(Bar):
         super().update(new_value, new_pos)
         self.pos = QVector2D(new_pos.x(), new_pos.y() + RELOAD_BAR_Y_BUFFER)
 ```
+
+Die Roboter haben zusätzlich noch einen Lebensbalken. Die update Methode vom Roboter sieht nun so aus:
+
+```python
+class BaseRobot(QObject):
+
+  ...
+
+    def update(self, deltaTime, levelMatrix, robotsDict):
+
+          # Fetch acceleration values from your thread
+          self.a, self.a_alpha = self.controller.fetchValues()
+          # But not too much
+          self.a = minmax(self.a, -self.a_max, self.a_max)
+          self.a_alpha = minmax(self.a_alpha, -self.a_alpha_max, self.a_alpha_max)
+
+          # Apply acceleration
+          self.v += self.a * deltaTime
+          self.v_alpha += self.a_alpha * deltaTime
+          # But not too much
+          self.v = minmax(self.v, -self.v_max, self.v_max)
+          self.v_alpha = minmax(self.v_alpha, -self.v_alpha_max, self.v_alpha_max)
+
+          obstacles = self.collisionRadar(levelMatrix)
+          self.collideWithWalls(obstacles)
+
+          # Apply velocity
+          if self.active:
+              self.pos += self.v * deltaTime * self.direction()
+              self.alpha += self.v_alpha * deltaTime
+              self.alpha %= 360
+          else:
+              self.timeToRespawn -= deltaTime
+              if self.timeToRespawn <= 0:
+                  self.respawn()
+
+          self.collideWithRobots(robotsDict, obstacles)
+
+          # send current information to the controller
+          self.robotInfoSignal.emit(self.x, self.y, self.alpha, self.v, self.v_alpha, self.readyToFire())
+
+          for gun in self.guns:
+              gun.update(deltaTime, levelMatrix, robotsDict)
+
+          # Health bar stuff
+          healthBarPosition = self.pos - QVector2D(0, self.r + 10)
+          self.healthBar.update(self.health, healthBarPosition)
+          color_g = int(255 * self.health / self.maxHealth)
+          color_r = 255 - color_g
+          self.healthBar.setColor(QColor(color_r, color_g, 0))
