@@ -1,4 +1,4 @@
-# Woche 5: Verfolgungsjagd
+# Woche 7: Waffen und Schüsse
 
 ### [<- Zurück](/../index.md) zur Projektübersicht
 ---
@@ -114,7 +114,89 @@ class Shotgun(Gun):
 
               self.resetTimer()
               self.soundEffect.play()
+              
+class GrenadeLauncher(Gun):
+
+    def __init__(self, owner, baseSpeed, timeToReload, damage, bulletsPerShot):
+        super().__init__(owner, baseSpeed, timeToReload, damage, bulletRadius=6)
+
+        self.bulletsPerShot = bulletsPerShot
+        self.explosionBullets = []
+
+        self.soundEffect_launcher = QSoundEffect(self)
+        self.soundEffect_launcher.setSource(QUrl.fromLocalFile("sounds/grenade_launcher.wav"))
+        self.soundEffect_launcher.setVolume(0.1)
+
+        self.soundEffect_explosion = QSoundEffect(self)
+        self.soundEffect_explosion.setSource(QUrl.fromLocalFile("sounds/explosion.wav"))
+        self.soundEffect_explosion.setVolume(1.5)
+
+    def update(self, deltaTime, levelMatrix, robotsDict):
+        super().update(deltaTime, levelMatrix, robotsDict)
+
+
+        for bullet in self.bullets:
+            bullet.update(deltaTime, levelMatrix, robotsDict)
+            if bullet.isTooOld() or bullet.collidesWithWorld(levelMatrix):
+                self.explode()
+                self.bullets.remove(bullet)
+                del bullet
+                continue
+
+            robot = bullet.collidesWithRobots(robotsDict)
+            if robot != None:
+                self.explode()
+                self.hitSignal.emit(robot.id, self.damage)
+                self.bullets.remove(bullet)
+                del bullet
+
+
+        for bullet in self.explosionBullets:
+            bullet.update(deltaTime, levelMatrix, robotsDict)
+            if bullet.isTooOld() or bullet.collidesWithWorld(levelMatrix):
+                self.explosionBullets.remove(bullet)
+                del bullet
+                continue
+
+            robot = bullet.collidesWithRobots(robotsDict)
+            if robot != None:
+                self.hitSignal.emit(robot.id, self.damage)
+                self.explosionBullets.remove(bullet)
+                del bullet
+                continue
+
+    def draw(self, qp):
+        super().draw(qp)
+
+        for bullet in self.explosionBullets:
+            bullet.draw(qp)
+
+    def fire(self, direction):
+        if self.readyToFire():
+            bulletSpeed = self.baseSpeed + self.owner.v
+            bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius, 1)
+            self.bullets.append(bullet)
+
+            self.resetTimer()
+            self.soundEffect_launcher.play()
+
+    def explode(self):
+        MAX_SCATTER_ANGLE = 360
+        MAX_SCATTER_SPEED = 20
+        BULLET_SPEED = 300
+        BULLET_MAX_AGE = 0.5
+
+        for i in range(self.bulletsPerShot):
+             scatteredAngle = random.uniform(-MAX_SCATTER_ANGLE, MAX_SCATTER_ANGLE)
+             scatteredDirection = angleToVector(scatteredAngle)
+             scatteredSpeed = BULLET_SPEED + random.uniform(-MAX_SCATTER_SPEED, MAX_SCATTER_SPEED)
+             newBullet = Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, BULLET_MAX_AGE)
+             self.explosionBullets.append(Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, 0.5))
+
+        self.soundEffect_explosion.play()
 ```
+
+Die Bullet Klasse representiert ein Geschoss:
 
 ```python
 class Bullet:
@@ -301,3 +383,5 @@ class BaseRobot(QObject):
           color_g = int(255 * self.health / self.maxHealth)
           color_r = 255 - color_g
           self.healthBar.setColor(QColor(color_r, color_g, 0))
+          
+```
