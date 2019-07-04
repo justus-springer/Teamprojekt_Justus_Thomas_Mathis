@@ -16,6 +16,13 @@ class Controller(QThread):
 
     shootSignal = pyqtSignal()
     switchToGunSignal = pyqtSignal(int)
+    moveUpSignal = pyqtSignal()
+    moveDownSignal = pyqtSignal()
+    moveLeftSignal = pyqtSignal()
+    moveRightSignal = pyqtSignal()
+
+
+
 
     def __init__(self, robotId):
         super().__init__()
@@ -145,8 +152,8 @@ class PlayerController(Controller):
 
     def __init__(self, robotId):
         super().__init__(robotId)
-        self.target_x = 0
-        self.target_y = 0
+        self.target_x = 500
+        self.target_y = 500
 
     def run(self):
 
@@ -161,11 +168,21 @@ class PlayerController(Controller):
         self.target_y = target_y
 
     def keyPressedSlot(self, keyId):
-        if keyId == Qt.Key_Space:
+
+        if keyId == Qt.Key_W:
+            self.moveUpSignal.emit()
+        elif keyId == Qt.Key_A:
+            self.moveLeftSignal.emit()
+        elif keyId == Qt.Key_S:
+            self.moveDownSignal.emit()
+        elif keyId == Qt.Key_D:
+            self.moveRightSignal.emit()
+        elif keyId == Qt.Key_Space:
             self.shootSignal.emit()
         elif isNumberKey(keyId):
             # shift one, because number pad starts at 1
             self.switchToGunSignal.emit(keyToNumber(keyId) - 1)
+
 
 
 # abstract
