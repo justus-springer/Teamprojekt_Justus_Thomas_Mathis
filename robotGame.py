@@ -88,20 +88,22 @@ class RobotGame(QWidget):
         self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
         self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
 
-        chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
-        handgun1 = Handgun(chaser1, 500, 2, 80)
-        chaser1.equipWithGuns(handgun1)
-        handgun1.hitSignal.connect(self.hitSignalSlot)
-        chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
-        handgun2 = Handgun(chaser2, 500, 2, 80)
-        chaser2.equipWithGuns(handgun2)
-        handgun2.hitSignal.connect(self.hitSignalSlot)
-        chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
-        handgun3 = Handgun(chaser3, 500, 2, 80)
-        chaser3.equipWithGuns(handgun3)
-        handgun3.hitSignal.connect(self.hitSignalSlot)
+        #chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
+        #handgun1 = Handgun(chaser1, 500, 2, 80)
+        #chaser1.equipWithGuns(handgun1)
+        #handgun1.hitSignal.connect(self.hitSignalSlot)
+        #chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
+        #handgun2 = Handgun(chaser2, 500, 2, 80)
+        #chaser2.equipWithGuns(handgun2)
+        #handgun2.hitSignal.connect(self.hitSignalSlot)
+        #chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
+        #handgun3 = Handgun(chaser3, 500, 2, 80)
+        #chaser3.equipWithGuns(handgun3)
+        #handgun3.hitSignal.connect(self.hitSignalSlot)
 
-        self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
+        #self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
+        self.robots = {robot.id : robot for robot in [testRobot]}
+
 
         for robot in self.robots.values():
 
