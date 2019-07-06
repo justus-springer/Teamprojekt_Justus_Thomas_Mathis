@@ -100,9 +100,10 @@ class Controller(QThread):
             stopping_distance = self.v ** 2 / (2 * self.a_max) + robots.EPSILON_ALPHA
 
             if delta_dist <= stopping_distance:
-                self.a = -self.a_max
+                self.a = - self.a_max
             else:
-                self.a = self.a_max
+                self.a = + self.a_max
+
 
     def moveInDirection(self, direction):
         self.moveAtSpeed(self.v_max)
@@ -155,11 +156,16 @@ class PlayerController(Controller):
         self.target_x = 500
         self.target_y = 500
 
+
     def run(self):
 
+
+
         while True:
+
             self.moveTo(self.target_x, self.target_y)
             self.msleep(DAEMON_SLEEP)
+
 
     ### Slots
 
@@ -170,19 +176,30 @@ class PlayerController(Controller):
     def keyPressedSlot(self, keyId):
 
         if keyId == Qt.Key_W:
-            self.moveUpSignal.emit()
+
+            self.target_x = self.x + 100 * math.cos(math.radians(self.alpha))
+            self.target_y = self.y + 100 * math.sin(math.radians(self.alpha))
+
         elif keyId == Qt.Key_A:
-            self.moveLeftSignal.emit()
+
+            self.target_x = self.x + math.cos(math.radians(self.alpha) + 10)
+            self.target_y = self.y + math.sin(math.radians(self.alpha) + 10)
+
         elif keyId == Qt.Key_S:
-            self.moveDownSignal.emit()
+
+            self.target_x = self.x
+            self.target_y = self.y
+
         elif keyId == Qt.Key_D:
-            self.moveRightSignal.emit()
+
+            self.target_x = self.x + math.cos(math.radians(self.alpha) - 10)
+            self.target_y = self.y + math.sin(math.radians(self.alpha) - 10)
+
         elif keyId == Qt.Key_Space:
             self.shootSignal.emit()
         elif isNumberKey(keyId):
             # shift one, because number pad starts at 1
             self.switchToGunSignal.emit(keyToNumber(keyId) - 1)
-
 
 
 # abstract

@@ -97,10 +97,6 @@ class BaseRobot(QObject):
         self.controller.fullStopRotationSignal.connect(self.fullStopRotation)
         self.controller.shootSignal.connect(self.shoot)
         self.controller.switchToGunSignal.connect(self.swithToGun)
-        self.controller.moveUpSignal.connect(self.moveUp)
-        self.controller.moveDownSignal.connect(self.moveDown)
-        self.controller.moveLeftSignal.connect(self.moveLeft)
-        self.controller.moveRightSignal.connect(self.moveRight)
 
     def draw(self, qp):
 
@@ -278,35 +274,6 @@ class BaseRobot(QObject):
         self.health = self.maxHealth
         self.active = True
         self.respawnSound.play()
-
-    def moveUp(self):
-
-        #self.controller.a = self.a_max / 2
-
-        self.controller.target_x = self.x
-        self.controller.target_y = self.y - 100
-
-    def moveDown(self):
-
-        #self.controller.a = - self.a_max / 2
-
-        self.controller.target_x = self.x
-        self.controller.target_y = self.y + 100
-
-
-    def moveLeft(self):
-
-        #self.controller.a_alpha = - self.a_alpha_max / 4
-        self.controller.target_x = self.x - 100
-        self.controller.target_y = self.y
-
-
-    def moveRight(self):
-
-        #self.controller.a_alpha = self.a_alpha_max / 4
-
-        self.controller.target_x = self.x + 100
-        self.controller.target_y = self.y
 
     ### properties and helperfunction
 
