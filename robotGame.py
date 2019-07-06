@@ -31,8 +31,7 @@ TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 
 class RobotGame(QWidget):
 
-    setTargetSignal = pyqtSignal(float, float)
-    keyPressedSignal = pyqtSignal(int)
+    keysPressedSignal = pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
@@ -44,6 +43,8 @@ class RobotGame(QWidget):
         self.initTextures()
         self.initRobots()
         self.initTimer()
+
+        self.keysPressed = []
 
     def initTextures(self):
 
@@ -85,25 +86,22 @@ class RobotGame(QWidget):
         shotgun.hitSignal.connect(self.hitSignalSlot)
         grenade.hitSignal.connect(self.hitSignalSlot)
         testRobot.equipWithGuns(handgun, shotgun, grenade)
-        self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
-        self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
+        self.keysPressedSignal.connect(testRobot.controller.keysPressedSlot)
 
-        #chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
-        #handgun1 = Handgun(chaser1, 500, 2, 80)
-        #chaser1.equipWithGuns(handgun1)
-        #handgun1.hitSignal.connect(self.hitSignalSlot)
-        #chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
-        #handgun2 = Handgun(chaser2, 500, 2, 80)
-        #chaser2.equipWithGuns(handgun2)
-        #handgun2.hitSignal.connect(self.hitSignalSlot)
-        #chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
-        #handgun3 = Handgun(chaser3, 500, 2, 80)
-        #chaser3.equipWithGuns(handgun3)
-        #handgun3.hitSignal.connect(self.hitSignalSlot)
+        chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
+        handgun1 = Handgun(chaser1, 500, 2, 80)
+        chaser1.equipWithGuns(handgun1)
+        handgun1.hitSignal.connect(self.hitSignalSlot)
+        chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
+        handgun2 = Handgun(chaser2, 500, 2, 80)
+        chaser2.equipWithGuns(handgun2)
+        handgun2.hitSignal.connect(self.hitSignalSlot)
+        chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
+        handgun3 = Handgun(chaser3, 500, 2, 80)
+        chaser3.equipWithGuns(handgun3)
+        handgun3.hitSignal.connect(self.hitSignalSlot)
 
-        #self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
-        self.robots = {robot.id : robot for robot in [testRobot]}
-
+        self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
 
         for robot in self.robots.values():
 
@@ -163,9 +161,12 @@ class RobotGame(QWidget):
                 for robot in self.robots.values():
                     self.emitRobotSensorData(robot)
 
+            # send key information to player controller
+            self.keysPressedSignal.emit(self.keysPressed)
 
             # Update visuals
             self.update()
+
 
         self.previous = elapsed
 
@@ -200,12 +201,11 @@ class RobotGame(QWidget):
         robot.robotsInViewSignal.emit(robotsInView)
         robot.wallsInViewSignal.emit(list(wallsInView))
 
-
-    def mouseMoveEvent(self, event):
-        self.setTargetSignal.emit(event.x(), event.y())
-
     def keyPressEvent(self, event):
-        self.keyPressedSignal.emit(event.key())
+        self.keysPressed.append(event.key())
+
+    def keyReleaseEvent(self, event):
+        self.keysPressed.remove(event.key())
 
     ### Slots
 

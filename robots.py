@@ -19,7 +19,7 @@ EPSILON_ALPHA = 10
 EPSILON_POS = 10
 
 # Acceleration properties
-A_MAX = 100
+A_MAX = 200
 A_ALPHA_MAX = 360
 
 # Collision properties
