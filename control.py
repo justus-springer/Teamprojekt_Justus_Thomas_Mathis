@@ -16,10 +16,6 @@ class Controller(QThread):
 
     shootSignal = pyqtSignal()
     switchToGunSignal = pyqtSignal(int)
-    moveUpSignal = pyqtSignal()
-    moveDownSignal = pyqtSignal()
-    moveLeftSignal = pyqtSignal()
-    moveRightSignal = pyqtSignal()
 
 
     def __init__(self, robotId):
@@ -147,6 +143,7 @@ class Controller(QThread):
     def receiveWallsInView(self, wallsInView):
         self.wallsInView = wallsInView
 
+
 class PlayerController(Controller):
 
     def __init__(self, robotId):
@@ -154,6 +151,7 @@ class PlayerController(Controller):
         self.target_x = 500
         self.target_y = 500
         self.keysPressed = []
+
 
     def run(self):
 
@@ -174,6 +172,46 @@ class PlayerController(Controller):
                 self.rotateAtSpeed(0)
 
             if Qt.Key_Space in self.keysPressed:
+                self.shootSignal.emit()
+
+            for key in filter(isNumberKey, self.keysPressed):
+                self.switchToGunSignal.emit(keyToNumber(key) - 1)
+
+            self.msleep(DAEMON_SLEEP)
+
+    ### Slots
+
+    def keysPressedSlot(self, keysPressed):
+        self.keysPressed = keysPressed
+
+
+class PlayerController2(Controller):
+
+    def __init__(self, robotId):
+        super().__init__(robotId)
+        self.target_x = 500
+        self.target_y = 500
+        self.keysPressed = []
+
+    def run(self):
+
+        while True:
+
+            if Qt.Key_I in self.keysPressed:
+                self.moveAtSpeed(self.v_max)
+            elif Qt.Key_K in self.keysPressed:
+                self.moveAtSpeed(-self.v_max)
+            else:
+                self.moveAtSpeed(0)
+
+            if Qt.Key_J in self.keysPressed:
+                self.rotateAtSpeed(-self.v_alpha_max)
+            elif Qt.Key_L in self.keysPressed:
+                self.rotateAtSpeed(self.v_alpha_max)
+            else:
+                self.rotateAtSpeed(0)
+
+            if Qt.Key_O in self.keysPressed:
                 self.shootSignal.emit()
 
             for key in filter(isNumberKey, self.keysPressed):
