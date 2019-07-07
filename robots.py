@@ -86,6 +86,9 @@ class BaseRobot(QObject):
     def equipWithGuns(self, *guns):
         self.guns = guns
         self.selected_gun = guns[0]
+        if len(guns) > 4:
+            self.selected_gun = guns[6]
+
 
     def connectSignals(self):
         self.robotSpecsSignal.connect(self.controller.receiveRobotSpecs)
@@ -253,6 +256,7 @@ class BaseRobot(QObject):
         if self.selected_gun != None and self.active:
             if self.selected_gun.readyToFire():
                 self.selected_gun.fire(self.direction())
+
             else:
                 self.emptyGunSound.play()
 
@@ -383,6 +387,17 @@ class RunnerRobot(BaseRobot):
 
 class TestRobot(BaseRobot):
 
-    def __init__(self, id, x, y):
+    def __init__(self, id, x, y, controllerClass):
         super().__init__(id, x, y, 30, 200, 500, 30, 0, "textures/robot_red.png")
-        self.controller = control.PlayerController(id)
+
+
+        self.controller = controllerClass(id)
+        if id == 1:
+            texturePath = "textures/robot_red.png"
+            self.texture = QPixmap(texturePath)
+        if id == 2:
+            texturePath = "textures/robot_blue.png"
+            self.texture = QPixmap(texturePath)
+
+
+

@@ -9,7 +9,7 @@ import control
 from arsenal import Handgun, Shotgun, GrenadeLauncher
 
 DEBUG_LINES = False
-GOD_MODE = True
+GOD_MODE = False
 
 #Window options
 
@@ -45,6 +45,7 @@ class RobotGame(QWidget):
         self.initTimer()
 
         self.keysPressed = []
+        self.keysPressed2 = []
 
     def initTextures(self):
 
@@ -71,37 +72,54 @@ class RobotGame(QWidget):
 
         self.robots = {}
 
-        testRobot = robots.TestRobot(1, 500, 500)
+        testRobot = robots.TestRobot(1, 600, 600, control.PlayerController)
+        testRobot2 = robots.TestRobot(2, 400, 400, control.PlayerController2)
 
         if GOD_MODE:
             handgun = Handgun(testRobot, 500, 0.1, 80)
             shotgun = Shotgun(testRobot, 200, 0.1, 10, 20)
             grenade = GrenadeLauncher(testRobot, 200, 0.1, 10, 100)
+            handgun_player_2 = Handgun(testRobot2, 500, 0.1, 80)
+            shotgun_player_2 = Shotgun(testRobot2, 200, 0.1, 10, 20)
+            grenade_player_2 = GrenadeLauncher(testRobot2, 200, 0.1, 10, 100)
         else:
             handgun = Handgun(testRobot, 500, 1, 80)
             shotgun = Shotgun(testRobot, 200, 2, 10, 20)
             grenade = GrenadeLauncher(testRobot, 200, 3, 10, 100)
+            handgun_player_2 = Handgun(testRobot2, 500, 1, 80)
+            shotgun_player_2 = Shotgun(testRobot2, 200, 2, 10, 20)
+            grenade_player_2 = GrenadeLauncher(testRobot2, 200, 3, 10, 100)
 
         handgun.hitSignal.connect(self.hitSignalSlot)
         shotgun.hitSignal.connect(self.hitSignalSlot)
         grenade.hitSignal.connect(self.hitSignalSlot)
-        testRobot.equipWithGuns(handgun, shotgun, grenade)
-        self.keysPressedSignal.connect(testRobot.controller.keysPressedSlot)
+        handgun_player_2.hitSignal.connect(self.hitSignalSlot)
+        shotgun_player_2.hitSignal.connect(self.hitSignalSlot)
+        grenade_player_2.hitSignal.connect(self.hitSignalSlot)
 
-        chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
+
+        testRobot.equipWithGuns(handgun, shotgun, grenade)
+        testRobot2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
+
+        self.keysPressedSignal.connect(testRobot.controller.keysPressedSlot)
+        self.keysPressedSignal.connect(testRobot2.controller.keysPressedSlot)
+
+        chaser1 = robots.ChaserRobot(3, 200, 500, 1, 200, control.ChaseDirectlyController)
         handgun1 = Handgun(chaser1, 500, 2, 80)
         chaser1.equipWithGuns(handgun1)
         handgun1.hitSignal.connect(self.hitSignalSlot)
-        chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
+
+        chaser2 = robots.ChaserRobot(4, 500, 200, 1, 200, control.ChasePredictController)
         handgun2 = Handgun(chaser2, 500, 2, 80)
         chaser2.equipWithGuns(handgun2)
         handgun2.hitSignal.connect(self.hitSignalSlot)
-        chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
+
+        chaser3 = robots.ChaserRobot(5, 800, 500, 1, 200, control.ChaseGuardController)
         handgun3 = Handgun(chaser3, 500, 2, 80)
         chaser3.equipWithGuns(handgun3)
         handgun3.hitSignal.connect(self.hitSignalSlot)
 
-        self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
+        self.robots = {robot.id : robot for robot in [testRobot, testRobot2]}
 
         for robot in self.robots.values():
 
