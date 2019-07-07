@@ -90,7 +90,6 @@ class Handgun(Gun):
             bulletSpeed = self.baseSpeed + self.owner.v
             bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius, 10)
             self.bullets.append(bullet)
-
             self.resetTimer()
             self.soundEffect.play()
 
@@ -182,7 +181,7 @@ class GrenadeLauncher(Gun):
                 continue
 
             robot = bullet.collidesWithRobots(robotsDict)
-            if robot != None:
+            if robot != None and robot.id != self.owner.id:
                 self.hitSignal.emit(robot.id, self.damage)
                 self.explosionBullets.remove(bullet)
                 del bullet

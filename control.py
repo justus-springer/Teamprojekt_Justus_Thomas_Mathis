@@ -16,12 +16,6 @@ class Controller(QThread):
 
     shootSignal = pyqtSignal()
     switchToGunSignal = pyqtSignal(int)
-    moveUpSignal = pyqtSignal()
-    moveDownSignal = pyqtSignal()
-    moveLeftSignal = pyqtSignal()
-    moveRightSignal = pyqtSignal()
-
-
 
 
     def __init__(self, robotId):
@@ -149,57 +143,86 @@ class Controller(QThread):
     def receiveWallsInView(self, wallsInView):
         self.wallsInView = wallsInView
 
+
 class PlayerController(Controller):
 
     def __init__(self, robotId):
         super().__init__(robotId)
         self.target_x = 500
         self.target_y = 500
+        self.keysPressed = []
 
 
     def run(self):
 
-
-
         while True:
 
-            self.moveTo(self.target_x, self.target_y)
-            self.msleep(DAEMON_SLEEP)
+            if Qt.Key_W in self.keysPressed:
+                self.moveAtSpeed(self.v_max)
+            elif Qt.Key_S in self.keysPressed:
+                self.moveAtSpeed(-self.v_max)
+            else:
+                self.moveAtSpeed(0)
 
+            if Qt.Key_A in self.keysPressed:
+                self.rotateAtSpeed(-self.v_alpha_max)
+            elif Qt.Key_D in self.keysPressed:
+                self.rotateAtSpeed(self.v_alpha_max)
+            else:
+                self.rotateAtSpeed(0)
+
+            if Qt.Key_Space in self.keysPressed:
+                self.shootSignal.emit()
+
+            for key in filter(isNumberKey, self.keysPressed):
+                self.switchToGunSignal.emit(keyToNumber(key) - 1)
+
+            self.msleep(DAEMON_SLEEP)
 
     ### Slots
 
-    def setTargetSlot(self, target_x, target_y):
-        self.target_x = target_x
-        self.target_y = target_y
+    def keysPressedSlot(self, keysPressed):
+        self.keysPressed = keysPressed
 
-    def keyPressedSlot(self, keyId):
 
-        if keyId == Qt.Key_W:
+class PlayerController2(Controller):
 
-            self.target_x = self.x + 100 * math.cos(math.radians(self.alpha))
-            self.target_y = self.y + 100 * math.sin(math.radians(self.alpha))
+    def __init__(self, robotId):
+        super().__init__(robotId)
+        self.target_x = 500
+        self.target_y = 500
+        self.keysPressed = []
 
-        elif keyId == Qt.Key_A:
+    def run(self):
 
-            self.target_x = self.x + math.cos(math.radians(self.alpha) + 10)
-            self.target_y = self.y + math.sin(math.radians(self.alpha) + 10)
+        while True:
 
-        elif keyId == Qt.Key_S:
+            if Qt.Key_I in self.keysPressed:
+                self.moveAtSpeed(self.v_max)
+            elif Qt.Key_K in self.keysPressed:
+                self.moveAtSpeed(-self.v_max)
+            else:
+                self.moveAtSpeed(0)
 
-            self.target_x = self.x
-            self.target_y = self.y
+            if Qt.Key_J in self.keysPressed:
+                self.rotateAtSpeed(-self.v_alpha_max)
+            elif Qt.Key_L in self.keysPressed:
+                self.rotateAtSpeed(self.v_alpha_max)
+            else:
+                self.rotateAtSpeed(0)
 
-        elif keyId == Qt.Key_D:
+            if Qt.Key_O in self.keysPressed:
+                self.shootSignal.emit()
 
-            self.target_x = self.x + math.cos(math.radians(self.alpha) - 10)
-            self.target_y = self.y + math.sin(math.radians(self.alpha) - 10)
+            for key in filter(isNumberKey, self.keysPressed):
+                self.switchToGunSignal.emit(keyToNumber(key) - 1)
 
-        elif keyId == Qt.Key_Space:
-            self.shootSignal.emit()
-        elif isNumberKey(keyId):
-            # shift one, because number pad starts at 1
-            self.switchToGunSignal.emit(keyToNumber(keyId) - 1)
+            self.msleep(DAEMON_SLEEP)
+
+    ### Slots
+
+    def keysPressedSlot(self, keysPressed):
+        self.keysPressed = keysPressed
 
 
 # abstract
