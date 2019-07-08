@@ -10,6 +10,7 @@ class Tile(Enum):
     sand_stone = 5
     snow = 6
     ice = 7
+    fire = 8
 
     def walkable(self):
         return self in [Tile.grass, Tile.sand, Tile.dark_sand, Tile.snow, Tile.stone]
