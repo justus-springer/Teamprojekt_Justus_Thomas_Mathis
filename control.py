@@ -5,6 +5,8 @@ import math
 
 import robots
 from toolbox import sumvectors, isNumberKey, keyToNumber
+import inputs
+from inputs import get_gamepad
 
 DAEMON_SLEEP = 50
 
@@ -357,3 +359,45 @@ class RunController(Controller):
 
 
             self.msleep(DAEMON_SLEEP)
+
+class XboxController(Controller):
+    def __init__(self, robotId):
+        super().__init__(robotId)
+        self.target_x = 0
+        self.target_y = 0
+
+
+    def run(self):
+
+        rotation = 0
+        movespeed = 0
+
+
+        while True:
+
+            events = inputs.get_gamepad()
+
+            for event in events:
+                if (event.code == 'ABS_X'):
+                    print(event.state)
+                    if event.state > 28000:
+                        rotation = 1
+                    elif event.state < -28000:
+                        rotation = -1
+                    else:
+                        rotation = 0
+
+                if event.code == 'BTN_SOUTH':
+                    if event.state == 1:
+                        movespeed = 1
+                    else:
+                        movespeed = 0
+                if event.code == 'BTN_EAST':
+                    if event.state == 1:
+                        movespeed  = -1
+                    else:
+                        movespeed = 0
+                if event.code == 'BTN_WEST' and event.state == 1:
+                    self.shootSignal.emit()
+            self.rotateAtSpeed(self.v_alpha_max * rotation)
+            self.moveAtSpeed(self.v_max * movespeed)
