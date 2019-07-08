@@ -69,7 +69,9 @@ class BaseRobot(QObject):
         self.health = maxHealth
         self.healthBar = HealthBar(maxHealth)
         self.active = True
+        self.protected = False
         self.timeToRespawn = 0
+        self.protectionTime = 0
 
         self.deathSound = QSoundEffect(self)
         self.deathSound.setSource(QUrl.fromLocalFile("sounds/death.wav"))
@@ -86,8 +88,6 @@ class BaseRobot(QObject):
     def equipWithGuns(self, *guns):
         self.guns = guns
         self.selected_gun = guns[0]
-        if len(guns) > 4:
-            self.selected_gun = guns[6]
 
 
     def connectSignals(self):
@@ -149,6 +149,11 @@ class BaseRobot(QObject):
         self.collideWithWalls(obstacles)
 
         # Apply velocity
+        if self.protected:
+            self.protectionTime -= deltaTime
+            if self.protectionTime <= 0:
+                self.protected = False
+
         if self.active:
             self.pos += self.v * deltaTime * self.direction()
             self.alpha += self.v_alpha * deltaTime
@@ -265,7 +270,7 @@ class BaseRobot(QObject):
             self.selected_gun = self.guns[index]
 
     def dealDamage(self, damage):
-        if self.active:
+        if self.active and not self.protected:
             self.health = max(0, self.health - damage)
             if self.health == 0:
                 self.active = False
@@ -277,6 +282,8 @@ class BaseRobot(QObject):
         self.pos.setY(self.spawn.y())
         self.health = self.maxHealth
         self.active = True
+        self.protected = True
+        self.protectionTime = 3
         self.respawnSound.play()
 
     ### properties and helperfunction
