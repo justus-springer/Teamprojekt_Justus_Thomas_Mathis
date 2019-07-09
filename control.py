@@ -5,7 +5,7 @@ import math
 
 import robots
 from toolbox import sumvectors, isNumberKey, keyToNumber
-from inputs import get_gamepad, NoDataError
+from inputs import get_gamepad, NoDataError, UnpluggedError
 
 DAEMON_SLEEP = 50
 
@@ -402,6 +402,8 @@ class XboxController(Controller):
                         self.nextGunSignal.emit(event.state)
 
             except NoDataError:
+                pass
+            except UnpluggedError:
                 pass
 
             self.rotateAtSpeed(self.v_alpha_max * rotation)
