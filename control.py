@@ -17,6 +17,7 @@ class Controller(QThread):
 
     shootSignal = pyqtSignal()
     switchToGunSignal = pyqtSignal(int)
+    nextGunSignal = pyqtSignal(int)
 
 
     def __init__(self, robotId):
@@ -100,8 +101,8 @@ class Controller(QThread):
                 self.a = + self.a_max
 
 
-    def moveInDirection(self, direction):
-        self.moveAtSpeed(self.v_max)
+    def moveInDirection(self, direction, speed=1000):
+        self.moveAtSpeed(speed)
         self.aimAt(self.x + 200 * direction.x(), self.y + 200 * direction.y())
 
     def rotateAtSpeed(self, target_speed):
@@ -373,7 +374,6 @@ class XboxController(Controller):
         rotation = 0
         movespeed = 0
 
-
         while True:
 
             try:
@@ -385,26 +385,21 @@ class XboxController(Controller):
                     print(event.ev_type, event.code, event.state)
 
                 for event in events:
-                    if (event.code == 'ABS_X'):
+                    if event.code == 'ABS_X':
                         if event.state > 28000:
                             rotation = 1
                         elif event.state < -28000:
                             rotation = -1
                         else:
                             rotation = 0
-
-                    if event.code == 'BTN_SOUTH':
-                        if event.state == 1:
-                            movespeed = 1
-                        else:
-                            movespeed = 0
-                    if event.code == 'BTN_EAST':
-                        if event.state == 1:
-                            movespeed  = -1
-                        else:
-                            movespeed = 0
-                    if event.code == 'BTN_WEST' and event.state == 1:
+                    elif event.code == 'ABS_RZ':
+                        movespeed = event.state / 255
+                    elif event.code == 'ABS_Z':
+                        movespeed = -event.state / 255
+                    elif event.code == 'BTN_WEST' and event.state == 1:
                         self.shootSignal.emit()
+                    elif event.code == 'ABS_HAT0X':
+                        self.nextGunSignal.emit(event.state)
 
             except NoDataError:
                 pass

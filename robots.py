@@ -65,6 +65,7 @@ class BaseRobot(QObject):
 
         self.guns = []
         self.selected_gun = None
+        self.currentGunIndex = 0
 
         self.maxHealth = maxHealth
         self.health = maxHealth
@@ -101,6 +102,7 @@ class BaseRobot(QObject):
         self.controller.fullStopRotationSignal.connect(self.fullStopRotation)
         self.controller.shootSignal.connect(self.shoot)
         self.controller.switchToGunSignal.connect(self.swithToGun)
+        self.controller.nextGunSignal.connect(self.nextGun)
 
     def draw(self, qp):
 
@@ -263,7 +265,13 @@ class BaseRobot(QObject):
 
     def swithToGun(self, index):
         if index < len(self.guns):
+            self.currentGunIndex =  index
             self.selected_gun = self.guns[index]
+
+    def nextGun(self, i):
+        print('hello')
+        self.currentGunIndex = (self.currentGunIndex + i) % len(self.guns)
+        self.selected_gun = self.guns[self.currentGunIndex]
 
     def dealDamage(self, damage):
         if self.active:

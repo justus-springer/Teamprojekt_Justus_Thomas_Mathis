@@ -37,7 +37,7 @@ class RobotGame(QWidget):
         super().__init__()
 
         # Load level data from file
-        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
+        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level2.txt')
 
         self.initUI()
         self.initTextures()
@@ -96,7 +96,6 @@ class RobotGame(QWidget):
         handgun_player_2.hitSignal.connect(self.hitSignalSlot)
         shotgun_player_2.hitSignal.connect(self.hitSignalSlot)
         grenade_player_2.hitSignal.connect(self.hitSignalSlot)
-
 
         testRobot.equipWithGuns(handgun, shotgun, grenade)
         testRobot2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
