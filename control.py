@@ -107,12 +107,24 @@ class Controller(QThread):
 
     def rotateAtSpeed(self, target_speed):
 
+        if target_speed == 0 and abs(self.v_alpha) < robots.EPSILON_V_ALPHA:
+            if abs(self.v_alpha) != 0:
+                self.fullStopRotationSignal.emit()
+            self.a_alpha = 0
+            return
+
         if self.v_alpha < target_speed:
             self.a_alpha = self.a_alpha_max
         else:
             self.a_alpha = -self.a_alpha_max
 
     def moveAtSpeed(self, target_speed):
+
+        if target_speed == 0 and abs(self.v) < robots.EPSILON_V:
+            if abs(self.v) != 0:
+                self.fullStopSignal.emit()
+            self.a = 0
+            return
 
         if self.v < target_speed:
             self.a = self.a_max
@@ -404,7 +416,8 @@ class XboxController(Controller):
             except NoDataError:
                 pass
             except UnpluggedError:
-                pass
+                print('No XBox controller found or it was unplugged')
+                self.sleep(10000)
 
             self.rotateAtSpeed(self.v_alpha_max * rotation)
             self.moveAtSpeed(self.v_max * movespeed)
