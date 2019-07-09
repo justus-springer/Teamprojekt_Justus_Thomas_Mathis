@@ -73,7 +73,7 @@ class RobotGame(QWidget):
         self.robots = {}
 
         testRobot = robots.TestRobot(1, 600, 600, control.PlayerController)
-        testRobot2 = robots.TestRobot(2, 400, 400, control.PlayerController2)
+        testRobot2 = robots.TestRobot(2, 400, 400, control.XboxController)
 
         if GOD_MODE:
             handgun = Handgun(testRobot, 500, 0.1, 80)
@@ -102,7 +102,6 @@ class RobotGame(QWidget):
         testRobot2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
 
         self.keysPressedSignal.connect(testRobot.controller.keysPressedSlot)
-        self.keysPressedSignal.connect(testRobot2.controller.keysPressedSlot)
 
         chaser1 = robots.ChaserRobot(3, 200, 500, 1, 200, control.ChaseDirectlyController)
         handgun1 = Handgun(chaser1, 500, 2, 80)

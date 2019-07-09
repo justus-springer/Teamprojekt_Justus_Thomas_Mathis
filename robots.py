@@ -20,7 +20,8 @@ EPSILON_POS = 10
 
 # Acceleration properties
 A_MAX = 200
-A_ALPHA_MAX = 360
+A_ALPHA_MAX = 720
+V_ALPHA_MAX = 200
 
 # Collision properties
 COLL_BUFFER = 10
@@ -60,7 +61,7 @@ class BaseRobot(QObject):
         self.a_alpha = 0 # unit: degrees/second^2
         self.a_alpha_max = A_ALPHA_MAX # unit: degrees/second^2
         self.v_alpha = 0 # unit: degrees/second
-        self.v_alpha_max = 360 # unit: degrees/second
+        self.v_alpha_max = V_ALPHA_MAX # unit: degrees/second
 
         self.guns = []
         self.selected_gun = None
@@ -398,6 +399,3 @@ class TestRobot(BaseRobot):
         if id == 2:
             texturePath = "textures/robot_blue.png"
             self.texture = QPixmap(texturePath)
-
-
-

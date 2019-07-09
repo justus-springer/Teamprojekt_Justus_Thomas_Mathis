@@ -5,8 +5,7 @@ import math
 
 import robots
 from toolbox import sumvectors, isNumberKey, keyToNumber
-import inputs
-from inputs import get_gamepad
+from inputs import get_gamepad, NoDataError
 
 DAEMON_SLEEP = 50
 
@@ -199,6 +198,8 @@ class PlayerController2(Controller):
 
         while True:
 
+            print('wasd: ', self.v_alpha)
+
             if Qt.Key_I in self.keysPressed:
                 self.moveAtSpeed(self.v_max)
             elif Qt.Key_K in self.keysPressed:
@@ -375,29 +376,38 @@ class XboxController(Controller):
 
         while True:
 
-            events = inputs.get_gamepad()
+            try:
+                events = get_gamepad(blocking = False)
 
-            for event in events:
-                if (event.code == 'ABS_X'):
-                    print(event.state)
-                    if event.state > 28000:
-                        rotation = 1
-                    elif event.state < -28000:
-                        rotation = -1
-                    else:
-                        rotation = 0
+                for event in events:
+                    if event.code in ['ABS_X', 'ABS_Y', 'ABS_RX', 'ABS_RY', 'SYN_REPORT']:
+                        continue
+                    print(event.ev_type, event.code, event.state)
 
-                if event.code == 'BTN_SOUTH':
-                    if event.state == 1:
-                        movespeed = 1
-                    else:
-                        movespeed = 0
-                if event.code == 'BTN_EAST':
-                    if event.state == 1:
-                        movespeed  = -1
-                    else:
-                        movespeed = 0
-                if event.code == 'BTN_WEST' and event.state == 1:
-                    self.shootSignal.emit()
+                for event in events:
+                    if (event.code == 'ABS_X'):
+                        if event.state > 28000:
+                            rotation = 1
+                        elif event.state < -28000:
+                            rotation = -1
+                        else:
+                            rotation = 0
+
+                    if event.code == 'BTN_SOUTH':
+                        if event.state == 1:
+                            movespeed = 1
+                        else:
+                            movespeed = 0
+                    if event.code == 'BTN_EAST':
+                        if event.state == 1:
+                            movespeed  = -1
+                        else:
+                            movespeed = 0
+                    if event.code == 'BTN_WEST' and event.state == 1:
+                        self.shootSignal.emit()
+
+            except NoDataError:
+                pass
+
             self.rotateAtSpeed(self.v_alpha_max * rotation)
             self.moveAtSpeed(self.v_max * movespeed)
