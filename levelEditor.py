@@ -1,4 +1,4 @@
-import sys
+import sys, random
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -21,12 +21,16 @@ class LevelEditor(QWidget):
         self.brushShape = "rect"
         self.brushSize = 3
         self.selected_tile = Tile.grass
+        self.density = 1
 
         self.levelMatrix = []
+        self.levelMatrixPrevious = []
         for y in range(NUMBER_OF_TILES):
             self.levelMatrix.append([])
+            self.levelMatrixPrevious.append([])
             for x in range(NUMBER_OF_TILES):
                 self.levelMatrix[y].append(Tile.grass)
+                self.levelMatrixPrevious[y].append(Tile.grass)
 
         self.tileTextures = {tileEnum : QPixmap('textures/' + tileName + '.png') for tileName, tileEnum in Tile.__members__.items()}
 
@@ -37,6 +41,15 @@ class LevelEditor(QWidget):
         self.initUI()
         self.setMouseTracking(True)
 
+    def copyToBackup(self):
+        for y in range(NUMBER_OF_TILES):
+            for x in range(NUMBER_OF_TILES):
+                self.levelMatrixPrevious[y][x] = self.levelMatrix[y][x]
+
+    def copyFromBackup(self):
+        for y in range(NUMBER_OF_TILES):
+            for x in range(NUMBER_OF_TILES):
+                self.levelMatrix[y][x] = self.levelMatrixPrevious[y][x]
 
     def initUI(self):
         self.setGeometry(100, 100, WINDOW_SIZE_X, WINDOW_SIZE_Y)
@@ -77,7 +90,18 @@ class LevelEditor(QWidget):
         circleAction = QAction('circle', self)
         circleAction.triggered.connect(lambda : self.setShape('circle'))
         shapeMenu.addAction(circleAction)
+        bucketAction = QAction('bucket [BETA]', self)
+        bucketAction.triggered.connect(lambda : self.setShape('bucket'))
+        shapeMenu.addAction(bucketAction)
         chooseShapeButton.setMenu(shapeMenu)
+
+        densitySlider = QSlider(Qt.Horizontal, self)
+        densitySlider.setGeometry(1030, 250, 140, 20)
+        densitySlider.show()
+        densitySlider.setMinimum(0)
+        densitySlider.setMaximum(100)
+        densitySlider.setValue(100)
+        densitySlider.valueChanged.connect(self.setDensity)
 
 
     def setTile(self, tile):
@@ -86,10 +110,14 @@ class LevelEditor(QWidget):
     def setShape(self, shape):
         self.brushShape = shape
 
+    def setDensity(self, density):
+        self.density = density / 100
+
     def loadFile(self):
         url = QFileDialog.getOpenFileUrl(self, "Save File", QDir.currentPath(), "TXT files (*.txt)")
         filePath = url[0].toLocalFile()
         self.levelMatrix, _ = LevelLoader.loadLevel(filePath)
+        self.levelMatrixPrevious = self.levelMatrix.copy()
 
     def saveFile(self):
         url = QFileDialog.getSaveFileUrl(self, "Save File", QDir.currentPath(), "TXT files (*.txt)")
@@ -102,13 +130,18 @@ class LevelEditor(QWidget):
         file.close()
 
     def fillBrush(self):
+
+        print('changed')
+        self.copyToBackup()
+
         rect = self.mouseRect()
         worldRect = QRectF(rect.x() * TILE_SIZE, rect.y() * TILE_SIZE, rect.width() * TILE_SIZE, rect.height() * TILE_SIZE)
 
         if self.brushShape == 'rect':
             for x in range(rect.x(), rect.x() + self.brushSize):
                 for y in range(rect.y(), rect.y() + self.brushSize):
-                    self.levelMatrix[y][x] = self.selected_tile
+                    if random.random() < self.density:
+                        self.levelMatrix[y][x] = self.selected_tile
         elif self.brushShape == 'circle':
             shape = QPainterPath()
             shape.addEllipse(worldRect)
@@ -116,7 +149,30 @@ class LevelEditor(QWidget):
                 for y in range(rect.y(), rect.y() + self.brushSize):
                     center = QPointF(x * TILE_SIZE + TILE_SIZE / 2, y * TILE_SIZE + TILE_SIZE / 2)
                     if shape.contains(center):
-                        self.levelMatrix[y][x] = self.selected_tile
+                        if random.random() < self.density:
+                            self.levelMatrix[y][x] = self.selected_tile
+        elif self.brushShape == 'bucket':
+            tile_x = int(self.mouse_x // 10)
+            tile_y = int(self.mouse_y // 10)
+            openList = [(tile_x, tile_y)]
+            tile = self.levelMatrix[tile_y][tile_x]
+            closedList = []
+            while len(openList) != 0:
+                x, y = openList[0]
+                closedList.append((x, y))
+                neighbors1 = [(x-1,y-1),(x-1,y),(x-1,y+1),(x,y-1),(x,y+1),(x+1,y-1),(x+1,y),(x+1,y+1)]
+                neighbors2 = list(filter(lambda p : p not in closedList and p not in openList, neighbors1))
+                neighbors3 = list(filter(lambda p : 0 <= p[0] < 100 and 0 <= p[1] < 100, neighbors2))
+                neighbors4 = list(filter(lambda p : self.levelMatrix[p[1]][p[0]] == tile, neighbors3))
+                openList.remove((x,y))
+                openList.extend(neighbors4)
+
+            for x,y in closedList:
+                if random.random() < self.density:
+                    self.levelMatrix[y][x] = self.selected_tile
+
+        print(self.levelMatrix[0])
+        print(self.levelMatrixPrevious[0])
 
     def paintEvent(self, event):
         qp = QPainter()
@@ -160,6 +216,11 @@ class LevelEditor(QWidget):
     def mousePressEvent(self, event):
         self.fillBrush()
         self.update()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Z:
+            print('now')
+            self.copyFromBackup()
 
     def wheelEvent(self, event):
         THRESHOLD = 60

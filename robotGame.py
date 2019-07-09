@@ -37,7 +37,7 @@ class RobotGame(QWidget):
         super().__init__()
 
         # Load level data from file
-        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('test.txt')
+        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level2.txt')
 
         self.initUI()
         self.initTextures()
