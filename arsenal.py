@@ -87,10 +87,9 @@ class Handgun(Gun):
 
     def fire(self, direction):
         if self.readyToFire():
-            bulletSpeed = self.baseSpeed + self.owner.v
+            bulletSpeed = self.baseSpeed + max(0, self.owner.v)
             bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius, 10)
             self.bullets.append(bullet)
-
             self.resetTimer()
             self.soundEffect.play()
 
@@ -126,7 +125,7 @@ class Shotgun(Gun):
         MAX_SCATTER_SPEED = 20
 
         if self.readyToFire():
-            bulletSpeed = self.baseSpeed + self.owner.v
+            bulletSpeed = self.baseSpeed + max(0, self.owner.v)
             baseAngle = vectorToAngle(direction)
             for i in range(self.bulletsPerShot):
                 scatteredAngle = baseAngle + random.uniform(-MAX_SCATTER_ANGLE, MAX_SCATTER_ANGLE)
@@ -182,7 +181,7 @@ class GrenadeLauncher(Gun):
                 continue
 
             robot = bullet.collidesWithRobots(robotsDict)
-            if robot != None:
+            if robot != None and robot.id != self.owner.id:
                 self.hitSignal.emit(robot.id, self.damage)
                 self.explosionBullets.remove(bullet)
                 del bullet
@@ -196,7 +195,7 @@ class GrenadeLauncher(Gun):
 
     def fire(self, direction):
         if self.readyToFire():
-            bulletSpeed = self.baseSpeed + self.owner.v
+            bulletSpeed = self.baseSpeed + max(0, self.owner.v)
             bullet = Bullet(self.owner, self.pos, direction, bulletSpeed, self.bulletRadius, 1)
             self.bullets.append(bullet)
 

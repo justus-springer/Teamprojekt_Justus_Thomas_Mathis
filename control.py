@@ -5,6 +5,7 @@ import math
 
 import robots
 from toolbox import sumvectors, isNumberKey, keyToNumber
+from inputs import get_gamepad, NoDataError, UnpluggedError
 
 DAEMON_SLEEP = 50
 
@@ -16,6 +17,8 @@ class Controller(QThread):
 
     shootSignal = pyqtSignal()
     switchToGunSignal = pyqtSignal(int)
+    nextGunSignal = pyqtSignal(int)
+
 
     def __init__(self, robotId):
         super().__init__()
@@ -93,15 +96,22 @@ class Controller(QThread):
             stopping_distance = self.v ** 2 / (2 * self.a_max) + robots.EPSILON_ALPHA
 
             if delta_dist <= stopping_distance:
-                self.a = -self.a_max
+                self.a = - self.a_max
             else:
-                self.a = self.a_max
+                self.a = + self.a_max
 
-    def moveInDirection(self, direction):
-        self.moveAtSpeed(self.v_max)
+
+    def moveInDirection(self, direction, speed=1000):
+        self.moveAtSpeed(speed)
         self.aimAt(self.x + 200 * direction.x(), self.y + 200 * direction.y())
 
     def rotateAtSpeed(self, target_speed):
+
+        if target_speed == 0 and abs(self.v_alpha) < robots.EPSILON_V_ALPHA:
+            if abs(self.v_alpha) != 0:
+                self.fullStopRotationSignal.emit()
+            self.a_alpha = 0
+            return
 
         if self.v_alpha < target_speed:
             self.a_alpha = self.a_alpha_max
@@ -109,6 +119,12 @@ class Controller(QThread):
             self.a_alpha = -self.a_alpha_max
 
     def moveAtSpeed(self, target_speed):
+
+        if target_speed == 0 and abs(self.v) < robots.EPSILON_V:
+            if abs(self.v) != 0:
+                self.fullStopSignal.emit()
+            self.a = 0
+            return
 
         if self.v < target_speed:
             self.a = self.a_max
@@ -141,31 +157,88 @@ class Controller(QThread):
     def receiveWallsInView(self, wallsInView):
         self.wallsInView = wallsInView
 
+
 class PlayerController(Controller):
 
     def __init__(self, robotId):
         super().__init__(robotId)
-        self.target_x = 0
-        self.target_y = 0
+        self.target_x = 500
+        self.target_y = 500
+        self.keysPressed = []
+
 
     def run(self):
 
         while True:
-            self.moveTo(self.target_x, self.target_y)
+
+            if Qt.Key_W in self.keysPressed:
+                self.moveAtSpeed(self.v_max)
+            elif Qt.Key_S in self.keysPressed:
+                self.moveAtSpeed(-self.v_max)
+            else:
+                self.moveAtSpeed(0)
+
+            if Qt.Key_A in self.keysPressed:
+                self.rotateAtSpeed(-self.v_alpha_max)
+            elif Qt.Key_D in self.keysPressed:
+                self.rotateAtSpeed(self.v_alpha_max)
+            else:
+                self.rotateAtSpeed(0)
+
+            if Qt.Key_Space in self.keysPressed:
+                self.shootSignal.emit()
+
+            for key in filter(isNumberKey, self.keysPressed):
+                self.switchToGunSignal.emit(keyToNumber(key) - 1)
+
             self.msleep(DAEMON_SLEEP)
 
     ### Slots
 
-    def setTargetSlot(self, target_x, target_y):
-        self.target_x = target_x
-        self.target_y = target_y
+    def keysPressedSlot(self, keysPressed):
+        self.keysPressed = keysPressed
 
-    def keyPressedSlot(self, keyId):
-        if keyId == Qt.Key_Space:
-            self.shootSignal.emit()
-        elif isNumberKey(keyId):
-            # shift one, because number pad starts at 1
-            self.switchToGunSignal.emit(keyToNumber(keyId) - 1)
+
+class PlayerController2(Controller):
+
+    def __init__(self, robotId):
+        super().__init__(robotId)
+        self.target_x = 500
+        self.target_y = 500
+        self.keysPressed = []
+
+    def run(self):
+
+        while True:
+
+            print('wasd: ', self.v_alpha)
+
+            if Qt.Key_I in self.keysPressed:
+                self.moveAtSpeed(self.v_max)
+            elif Qt.Key_K in self.keysPressed:
+                self.moveAtSpeed(-self.v_max)
+            else:
+                self.moveAtSpeed(0)
+
+            if Qt.Key_J in self.keysPressed:
+                self.rotateAtSpeed(-self.v_alpha_max)
+            elif Qt.Key_L in self.keysPressed:
+                self.rotateAtSpeed(self.v_alpha_max)
+            else:
+                self.rotateAtSpeed(0)
+
+            if Qt.Key_O in self.keysPressed:
+                self.shootSignal.emit()
+
+            for key in filter(isNumberKey, self.keysPressed):
+                self.switchToGunSignal.emit(keyToNumber(key) - 1)
+
+            self.msleep(DAEMON_SLEEP)
+
+    ### Slots
+
+    def keysPressedSlot(self, keysPressed):
+        self.keysPressed = keysPressed
 
 
 # abstract
@@ -300,3 +373,51 @@ class RunController(Controller):
 
 
             self.msleep(DAEMON_SLEEP)
+
+class XboxController(Controller):
+    def __init__(self, robotId):
+        super().__init__(robotId)
+        self.target_x = 0
+        self.target_y = 0
+
+
+    def run(self):
+
+        rotation = 0
+        movespeed = 0
+
+        while True:
+
+            try:
+                events = get_gamepad(blocking = False)
+
+                for event in events:
+                    if event.code in ['ABS_X', 'ABS_Y', 'ABS_RX', 'ABS_RY', 'SYN_REPORT']:
+                        continue
+                    print(event.ev_type, event.code, event.state)
+
+                for event in events:
+                    if event.code == 'ABS_X':
+                        if event.state > 28000:
+                            rotation = 1
+                        elif event.state < -28000:
+                            rotation = -1
+                        else:
+                            rotation = 0
+                    elif event.code == 'ABS_RZ':
+                        movespeed = event.state / 255
+                    elif event.code == 'ABS_Z':
+                        movespeed = -event.state / 255
+                    elif event.code == 'BTN_WEST' and event.state == 1:
+                        self.shootSignal.emit()
+                    elif event.code == 'ABS_HAT0X':
+                        self.nextGunSignal.emit(event.state)
+
+            except NoDataError:
+                pass
+            except UnpluggedError:
+                print('No XBox controller found or it was unplugged')
+                self.sleep(10000)
+
+            self.rotateAtSpeed(self.v_alpha_max * rotation)
+            self.moveAtSpeed(self.v_max * movespeed)

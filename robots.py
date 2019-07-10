@@ -19,8 +19,9 @@ EPSILON_ALPHA = 10
 EPSILON_POS = 10
 
 # Acceleration properties
-A_MAX = 100
-A_ALPHA_MAX = 360
+A_MAX = 200
+A_ALPHA_MAX = 720
+V_ALPHA_MAX = 200
 
 # Collision properties
 COLL_BUFFER = 10
@@ -60,16 +61,19 @@ class BaseRobot(QObject):
         self.a_alpha = 0 # unit: degrees/second^2
         self.a_alpha_max = A_ALPHA_MAX # unit: degrees/second^2
         self.v_alpha = 0 # unit: degrees/second
-        self.v_alpha_max = 360 # unit: degrees/second
+        self.v_alpha_max = V_ALPHA_MAX # unit: degrees/second
 
         self.guns = []
         self.selected_gun = None
+        self.currentGunIndex = 0
 
         self.maxHealth = maxHealth
         self.health = maxHealth
         self.healthBar = HealthBar(maxHealth)
         self.active = True
+        self.protected = False
         self.timeToRespawn = 0
+        self.protectionTime = 0
 
         self.deathSound = QSoundEffect(self)
         self.deathSound.setSource(QUrl.fromLocalFile("sounds/death.wav"))
@@ -87,6 +91,7 @@ class BaseRobot(QObject):
         self.guns = guns
         self.selected_gun = guns[0]
 
+
     def connectSignals(self):
         self.robotSpecsSignal.connect(self.controller.receiveRobotSpecs)
         self.robotInfoSignal.connect(self.controller.receiveRobotInfo)
@@ -97,6 +102,7 @@ class BaseRobot(QObject):
         self.controller.fullStopRotationSignal.connect(self.fullStopRotation)
         self.controller.shootSignal.connect(self.shoot)
         self.controller.switchToGunSignal.connect(self.swithToGun)
+        self.controller.nextGunSignal.connect(self.nextGun)
 
     def draw(self, qp):
 
@@ -146,6 +152,11 @@ class BaseRobot(QObject):
         self.collideWithWalls(obstacles)
 
         # Apply velocity
+        if self.protected:
+            self.protectionTime -= deltaTime
+            if self.protectionTime <= 0:
+                self.protected = False
+
         if self.active:
             self.pos += self.v * deltaTime * self.direction()
             self.alpha += self.v_alpha * deltaTime
@@ -253,15 +264,22 @@ class BaseRobot(QObject):
         if self.selected_gun != None and self.active:
             if self.selected_gun.readyToFire():
                 self.selected_gun.fire(self.direction())
+
             else:
                 self.emptyGunSound.play()
 
     def swithToGun(self, index):
         if index < len(self.guns):
+            self.currentGunIndex =  index
             self.selected_gun = self.guns[index]
 
+    def nextGun(self, i):
+        print('hello')
+        self.currentGunIndex = (self.currentGunIndex + i) % len(self.guns)
+        self.selected_gun = self.guns[self.currentGunIndex]
+
     def dealDamage(self, damage):
-        if self.active:
+        if self.active and not self.protected:
             self.health = max(0, self.health - damage)
             if self.health == 0:
                 self.active = False
@@ -273,8 +291,9 @@ class BaseRobot(QObject):
         self.pos.setY(self.spawn.y())
         self.health = self.maxHealth
         self.active = True
+        self.protected = True
+        self.protectionTime = 3
         self.respawnSound.play()
-
 
     ### properties and helperfunction
 
@@ -384,6 +403,14 @@ class RunnerRobot(BaseRobot):
 
 class TestRobot(BaseRobot):
 
-    def __init__(self, id, x, y):
+    def __init__(self, id, x, y, controllerClass):
         super().__init__(id, x, y, 30, 200, 500, 30, 0, "textures/robot_red.png")
-        self.controller = control.PlayerController(id)
+
+
+        self.controller = controllerClass(id)
+        if id == 1:
+            texturePath = "textures/robot_red.png"
+            self.texture = QPixmap(texturePath)
+        if id == 2:
+            texturePath = "textures/robot_blue.png"
+            self.texture = QPixmap(texturePath)

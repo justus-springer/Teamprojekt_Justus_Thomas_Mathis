@@ -1,6 +1,6 @@
 import sys, math
 from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush, QFont
+from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush, QFont, QGuiApplication
 from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF, QDateTime, QObject
 
 from levelLoader import LevelLoader, Tile
@@ -9,7 +9,8 @@ import control
 from arsenal import Handgun, Shotgun, GrenadeLauncher
 
 DEBUG_LINES = False
-GOD_MODE = True
+GOD_MODE = False
+DUEL_MODE = True
 
 #Window options
 
@@ -31,19 +32,28 @@ TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 
 class RobotGame(QWidget):
 
-    setTargetSignal = pyqtSignal(float, float)
-    keyPressedSignal = pyqtSignal(int)
+    keysPressedSignal = pyqtSignal(list)
 
     def __init__(self):
         super().__init__()
 
         # Load level data from file
-        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level1.txt')
+        if DUEL_MODE:
+            self.levelMatrix, self.obstacles = LevelLoader.loadLevel('arena.txt')
+            self.spawnPlayer1 = QVector2D(50, 500)
+            self.spawnPlayer2 = QVector2D(950, 500)
+        else:
+            self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level2.txt')
+            self.spawnPlayer1 = QVector2D(550, 550)
+            self.spawnPlayer2 = QVector2D(450, 450)
 
         self.initUI()
         self.initTextures()
         self.initRobots()
         self.initTimer()
+
+        self.keysPressed = []
+        self.keysPressed2 = []
 
     def initTextures(self):
 
@@ -70,38 +80,56 @@ class RobotGame(QWidget):
 
         self.robots = {}
 
-        testRobot = robots.TestRobot(1, 500, 500)
+        player1 = robots.TestRobot(1, self.spawnPlayer1.x(), self.spawnPlayer1.y(), control.PlayerController)
+        player2 = robots.TestRobot(2, self.spawnPlayer2.x(), self.spawnPlayer2.y(), control.XboxController)
 
         if GOD_MODE:
-            handgun = Handgun(testRobot, 500, 0.1, 80)
-            shotgun = Shotgun(testRobot, 200, 0.1, 10, 20)
-            grenade = GrenadeLauncher(testRobot, 200, 0.1, 10, 100)
+            handgun = Handgun(player1, 500, 0.1, 80)
+            shotgun = Shotgun(player1, 200, 0.1, 10, 20)
+            grenade = GrenadeLauncher(player1, 200, 0.1, 10, 100)
+            handgun_player_2 = Handgun(player2, 500, 0.1, 80)
+            shotgun_player_2 = Shotgun(player2, 200, 0.1, 10, 20)
+            grenade_player_2 = GrenadeLauncher(player2, 200, 0.1, 10, 100)
         else:
-            handgun = Handgun(testRobot, 500, 1, 80)
-            shotgun = Shotgun(testRobot, 200, 2, 10, 20)
-            grenade = GrenadeLauncher(testRobot, 200, 3, 10, 100)
+            handgun = Handgun(player1, 500, 1, 80)
+            shotgun = Shotgun(player1, 200, 2, 10, 20)
+            grenade = GrenadeLauncher(player1, 200, 3, 10, 100)
+            handgun_player_2 = Handgun(player2, 500, 1, 80)
+            shotgun_player_2 = Shotgun(player2, 200, 2, 10, 20)
+            grenade_player_2 = GrenadeLauncher(player2, 200, 3, 10, 100)
 
         handgun.hitSignal.connect(self.hitSignalSlot)
         shotgun.hitSignal.connect(self.hitSignalSlot)
         grenade.hitSignal.connect(self.hitSignalSlot)
-        testRobot.equipWithGuns(handgun, shotgun, grenade)
-        self.setTargetSignal.connect(testRobot.controller.setTargetSlot)
-        self.keyPressedSignal.connect(testRobot.controller.keyPressedSlot)
+        handgun_player_2.hitSignal.connect(self.hitSignalSlot)
+        shotgun_player_2.hitSignal.connect(self.hitSignalSlot)
+        grenade_player_2.hitSignal.connect(self.hitSignalSlot)
 
-        chaser1 = robots.ChaserRobot(2, 200, 500, 1, 200, control.ChaseDirectlyController)
-        handgun1 = Handgun(chaser1, 500, 2, 80)
-        chaser1.equipWithGuns(handgun1)
-        handgun1.hitSignal.connect(self.hitSignalSlot)
-        chaser2 = robots.ChaserRobot(3, 500, 200, 1, 200, control.ChasePredictController)
-        handgun2 = Handgun(chaser2, 500, 2, 80)
-        chaser2.equipWithGuns(handgun2)
-        handgun2.hitSignal.connect(self.hitSignalSlot)
-        chaser3 = robots.ChaserRobot(4, 800, 500, 1, 200, control.ChaseGuardController)
-        handgun3 = Handgun(chaser3, 500, 2, 80)
-        chaser3.equipWithGuns(handgun3)
-        handgun3.hitSignal.connect(self.hitSignalSlot)
+        player1.equipWithGuns(handgun, shotgun, grenade)
+        player2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
 
-        self.robots = {robot.id : robot for robot in [testRobot, chaser1, chaser2, chaser3]}
+        self.keysPressedSignal.connect(player1.controller.keysPressedSlot)
+
+        if DUEL_MODE:
+            self.robots = {robot.id : robot for robot in [player1, player2]}
+        else:
+
+            chaser1 = robots.ChaserRobot(3, 200, 500, 1, 200, control.ChaseDirectlyController)
+            handgun1 = Handgun(chaser1, 500, 2, 80)
+            chaser1.equipWithGuns(handgun1)
+            handgun1.hitSignal.connect(self.hitSignalSlot)
+
+            chaser2 = robots.ChaserRobot(4, 500, 200, 1, 200, control.ChasePredictController)
+            handgun2 = Handgun(chaser2, 500, 2, 80)
+            chaser2.equipWithGuns(handgun2)
+            handgun2.hitSignal.connect(self.hitSignalSlot)
+
+            chaser3 = robots.ChaserRobot(5, 800, 500, 1, 200, control.ChaseGuardController)
+            handgun3 = Handgun(chaser3, 500, 2, 80)
+            chaser3.equipWithGuns(handgun3)
+            handgun3.hitSignal.connect(self.hitSignalSlot)
+
+            self.robots = {robot.id : robot for robot in [player1, player2, chaser1, chaser2, chaser3]}
 
         for robot in self.robots.values():
 
@@ -152,6 +180,7 @@ class RobotGame(QWidget):
         deltaTime = deltaTimeMillis / MILLISECONDS_PER_SECOND
 
         if deltaTime < 0.5:
+
             # Update robots
             for robot in self.robots.values():
                 robot.update(deltaTime, self.levelMatrix, self.robots)
@@ -161,9 +190,12 @@ class RobotGame(QWidget):
                 for robot in self.robots.values():
                     self.emitRobotSensorData(robot)
 
+            # send key information to player controller
+            self.keysPressedSignal.emit(self.keysPressed)
 
             # Update visuals
             self.update()
+
 
         self.previous = elapsed
 
@@ -198,12 +230,11 @@ class RobotGame(QWidget):
         robot.robotsInViewSignal.emit(robotsInView)
         robot.wallsInViewSignal.emit(list(wallsInView))
 
-
-    def mouseMoveEvent(self, event):
-        self.setTargetSignal.emit(event.x(), event.y())
-
     def keyPressEvent(self, event):
-        self.keyPressedSignal.emit(event.key())
+        self.keysPressed.append(event.key())
+
+    def keyReleaseEvent(self, event):
+        self.keysPressed.remove(event.key())
 
     ### Slots
 
