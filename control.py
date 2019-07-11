@@ -392,11 +392,6 @@ class XboxController(Controller):
                 events = get_gamepad(blocking = False)
 
                 for event in events:
-                    if event.code in ['ABS_X', 'ABS_Y', 'ABS_RX', 'ABS_RY', 'SYN_REPORT']:
-                        continue
-                    print(event.ev_type, event.code, event.state)
-
-                for event in events:
                     if event.code == 'ABS_X':
                         if event.state > 28000:
                             rotation = 1

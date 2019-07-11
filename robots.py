@@ -228,10 +228,10 @@ class BaseRobot(QObject):
     def collisionRadar(self, levelMatrix):
         #Calculate Limits
 
-        x_min = minmax(int((self.x - self.r - COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix))
-        x_max = minmax(int((self.x + self.r + COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix))
-        y_min = minmax(int((self.y - self.r - COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix))
-        y_max = minmax(int((self.y + self.r + COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix))
+        x_min = minmax(int((self.x - self.r - COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
+        x_max = minmax(int((self.x + self.r + COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
+        y_min = minmax(int((self.y - self.r - COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
+        y_max = minmax(int((self.y + self.r + COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
 
         #Fill obstacle list
         obstacles = []
