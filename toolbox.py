@@ -74,4 +74,4 @@ def posToTileIndex(pos,levelMatrix):
     return levelMatrix[int(pos.y() // robotGame.TILE_SIZE)][int(pos.x() // robotGame.TILE_SIZE)]
 
 def onPlayground(pos):
-    return (0 <= pos.x() < robotGame.WINDOW_SIZE) and (0 <= pos.y() < robotGame.WINDOW_SIZE)
+    return (0 <= pos.x() <= robotGame.WINDOW_SIZE) and (0 <= pos.y() <= robotGame.WINDOW_SIZE)
