@@ -1,6 +1,6 @@
 from PyQt5.Qt import QVector2D, Qt
 import math
-
+import robotGame
 def minmax(value, low, high):
     return max(min(value, high), low)
 
@@ -71,9 +71,7 @@ def keyToNumber(keyId):
 
 # Pos has to be on the playground  or its out of bound
 def posToTileIndex(pos,levelMatrix):
-    return levelMatrix[int(pos.y() // 10)][int(pos.x() // 10)]
+    return levelMatrix[int(pos.y() // robotGame.TILE_SIZE)][int(pos.x() // robotGame.TILE_SIZE)]
 
 def onPlayground(pos):
-    if pos.x() > 1000 or pos.x() < 0 or pos.y() > 1000 or pos.y() < 0:
-        return False
-    return True
+    return (0 <= pos.x() < robotGame.WINDOW_SIZE) and (0 <= pos.y() < robotGame.WINDOW_SIZE)
