@@ -236,7 +236,7 @@ class Bullet:
     # Returns true if the bullet collides with the world
     def collidesWithWorld(self, levelMatrix):
 
-        return not onPlayground(self.pos) or not posToTileIndex(self.pos, levelMatrix).walkable()
+        return not onPlayground(self.pos) or not posToTileIndex(self.pos, levelMatrix).shootable()
 
     # If the bullet collides with a robot, it returns that robot
     # Otherwise returns None

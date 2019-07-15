@@ -9,12 +9,14 @@ class Tile(Enum):
     dark_sand = 4
     sand_stone = 5
     snow = 6
-    ice = 7
+    water = 7
     stonewall = 8
     fire = 9
 
     def walkable(self):
         return self in [Tile.grass, Tile.sand, Tile.dark_sand, Tile.snow, Tile.stone]
+    def shootable(self):
+        return self in [Tile.grass, Tile.sand, Tile.dark_sand, Tile.snow, Tile.stone, Tile.water]
 
 class LevelLoader:
 
