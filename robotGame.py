@@ -1,7 +1,8 @@
 import sys, math
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel
+from PyQt5.QtWidgets import QWidget, QApplication, QLabel, QToolTip, QPushButton, QApplication, QMessageBox
 from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush, QFont, QGuiApplication
 from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF, QDateTime, QObject
+import random
 
 from levelLoader import LevelLoader, Tile
 import robots
@@ -30,6 +31,7 @@ FPS = 30
 MILLISECONDS_PER_SECOND = 1000
 TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 
+
 class RobotGame(QWidget):
 
     keysPressedSignal = pyqtSignal(list)
@@ -47,13 +49,30 @@ class RobotGame(QWidget):
             self.spawnPlayer1 = QVector2D(550, 550)
             self.spawnPlayer2 = QVector2D(450, 450)
 
-        self.initUI()
         self.initTextures()
         self.initRobots()
         self.initTimer()
+        self.initUI()
 
         self.keysPressed = []
-        self.keysPressed2 = []
+
+        self.levels = ['volcano.txt', 'arena.txt', 'arctic.txt']
+
+        self.changeTime = 0
+        self.toChange = False
+
+        self.points = [0, 0]
+        self.results = [0, 0]
+        self.playerWon = 0
+
+        self.bluePlayerColor = QColor(50, 120, 220, 255)
+        self.redPlayerColor = QColor(120, 30, 30, 255)
+        self.backgroundColor = QColor(80, 80, 80, 160)
+        self.innerBackgroundColor = QColor(20, 20, 20, 240)
+
+        self.restartButton = QPushButton('Play Again?', self)
+
+
 
     def initTextures(self):
 
@@ -63,7 +82,9 @@ class RobotGame(QWidget):
 
         self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, WINDOW_SIZE, WINDOW_SIZE)
         self.setWindowTitle(WINDOW_TITLE)
+
         self.show()
+
 
     def initTimer(self):
 
@@ -154,7 +175,44 @@ class RobotGame(QWidget):
             for robot in self.robots.values():
                 robot.drawDebugLines(qp)
 
+        self.drawScore(event, qp)
+
         qp.end()
+
+    def drawScore(self, event, qp):
+
+        qp.setFont(QFont('Decorative', 40))
+
+        qp.setPen(self.redPlayerColor)
+        qp.drawText(400, 150, str((self.points[1])))
+
+        qp.setPen(self.bluePlayerColor)
+        qp.drawText(580, 150, str((self.points[0])))
+
+        if self.playerWon == 1 or self.playerWon == 2:
+
+            qp.setBrush(self.backgroundColor)
+            qp.setPen(self.backgroundColor)
+            qp.drawRect(0, 0, 1000, 1000)
+
+            qp.setBrush(self.innerBackgroundColor)
+            qp.setPen(Qt.black)
+            qp.drawRect(0, 400, 1000, 200)
+
+            qp.setFont(QFont('Decorative', 120))
+            qp.setPen(Qt.black)
+
+            if self.playerWon == 2:
+                qp.setPen(self.bluePlayerColor)
+                qp.drawText(160, 550, "blue wins!")
+            else:
+                qp.setPen(self.redPlayerColor)
+                qp.drawText(190, 550, "red wins!")
+
+        if self.toChange:
+            qp.setFont(QFont('Decorative', 120))
+            qp.setPen(Qt.black)
+            qp.drawText(460, 250, str(int(self.changeTime) + 1))
 
     def drawTiles(self, event, qp):
 
@@ -196,6 +254,12 @@ class RobotGame(QWidget):
             # Update visuals
             self.update()
 
+        if self.toChange:
+            self.changeTime -= deltaTime
+            if self.changeTime <= 0:
+                self.toChange = False
+                self.randomLevelChange()
+                self.points = [0, 0]
 
         self.previous = elapsed
 
@@ -242,6 +306,61 @@ class RobotGame(QWidget):
     def hitSignalSlot(self, id, damage):
         self.robots[id].dealDamage(damage)
 
+        if self.robots[id].active and not self.robots[id].protected and self.robots[id].health == 0:
+            self.robots[id].killRobot()
+            self.points[id-1] = self.points[id-1] + 1
+
+            if self.points[id-1] == 2:
+                self.toChange = True
+                self.changeTime = 3
+
+                if id == 1:
+                    self.results[1] = self.results[1] + 1
+                    if self.results[1] == 1:
+                        self.playerWon = 2
+                        self.toChange = False
+                        self.showPopup()
+
+                else:
+                    self.results[0] = self.results[0] + 1
+                    if self.results[0] == 1:
+                        self.playerWon = 1
+                        self.toChange = False
+                        self.showPopup()
+
+    def showPopup(self):
+
+        self.restartButton = QPushButton('Play Again?', self)
+        self.restartButton.clicked.connect(self.restart)
+        self.restartButton.resize(200, 50)
+        self.restartButton.move(400, 700)
+        self.restartButton.show()
+
+    def restart(self):
+        self.toChange = True
+
+        self.points = [0, 0]
+        self.results = [0, 0]
+        self.setFocus()
+
+        self.restartButton.resize(0, 0)
+
+
+    def randomLevelChange(self):
+
+        self.levelMatrix, self.obstacles = LevelLoader.loadLevel(self.levels[random.randint(0, 2)])
+        self.spawnPlayer1 = QVector2D(75, 500)
+        self.spawnPlayer2 = QVector2D(925, 500)
+        self.playerWon = 0
+
+        self.initTextures()
+        self.initRobots()
+
+
+
+
+
+
 if __name__ == '__main__':
 
     app = QApplication(sys.argv)
@@ -249,3 +368,6 @@ if __name__ == '__main__':
     game = RobotGame()
 
     sys.exit(app.exec_())
+
+
+

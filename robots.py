@@ -283,10 +283,11 @@ class BaseRobot(QObject):
     def dealDamage(self, damage):
         if self.active and not self.protected:
             self.health = max(0, self.health - damage)
-            if self.health == 0:
-                self.active = False
-                self.timeToRespawn = 3 # 3 seconds until respawn
-                self.deathSound.play()
+
+    def killRobot(self):
+        self.active = False
+        self.timeToRespawn = 3  # 3 seconds until respawn
+        self.deathSound.play()
 
     def respawn(self):
         self.pos.setX(self.spawn.x())
