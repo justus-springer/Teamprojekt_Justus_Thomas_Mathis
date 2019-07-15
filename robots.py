@@ -277,7 +277,6 @@ class BaseRobot(QObject):
             self.selected_gun = self.guns[index]
 
     def nextGun(self, i):
-        print('hello')
         self.currentGunIndex = (self.currentGunIndex + i) % len(self.guns)
         self.selected_gun = self.guns[self.currentGunIndex]
 
