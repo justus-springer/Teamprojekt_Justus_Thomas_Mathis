@@ -368,6 +368,3 @@ if __name__ == '__main__':
     game = RobotGame()
 
     sys.exit(app.exec_())
-
-
-

@@ -107,8 +107,10 @@ class BaseRobot(QObject):
     def draw(self, qp):
 
         qp.save()
+
         qp.translate(self.x, self.y)
         qp.rotate(self.alpha)
+        qp.setOpacity(1 - self.protectionTime / 3)
         source = QRectF(0, 0, 64, 64)
         target = QRectF(-self.r, -self.r, 2*self.r, 2*self.r)
         qp.drawPixmap(target, self.texture, source)
@@ -156,6 +158,7 @@ class BaseRobot(QObject):
             self.protectionTime -= deltaTime
             if self.protectionTime <= 0:
                 self.protected = False
+                self.protectionTime = 0
 
         if self.active:
             self.pos += self.v * deltaTime * self.direction()
