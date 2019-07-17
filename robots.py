@@ -184,7 +184,6 @@ class BaseRobot(QObject):
         color_r = 255 - color_g
         self.healthBar.setColor(QColor(color_r, color_g, 0))
 
-
     def collideWithWalls(self, obstacles):
 
         for rect in obstacles:
@@ -267,7 +266,7 @@ class BaseRobot(QObject):
             return False
 
     def shoot(self):
-        if self.selected_gun != None and self.active:
+        if self.selected_gun is not None and self.active:
             if self.selected_gun.readyToFire():
                 self.selected_gun.fire(self.direction())
 
@@ -276,7 +275,7 @@ class BaseRobot(QObject):
 
     def swithToGun(self, index):
         if index < len(self.guns):
-            self.currentGunIndex =  index
+            self.currentGunIndex = index
             self.selected_gun = self.guns[index]
 
     def nextGun(self, i):
@@ -310,7 +309,7 @@ class BaseRobot(QObject):
         return QRectF(self.x - self.r, self.y - self.r, 2*self.r, 2*self.r)
 
     def readyToFire(self):
-        if self.selected_gun == None:
+        if self.selected_gun is None:
             return False
         else:
             return self.selected_gun.readyToFire()
@@ -369,6 +368,7 @@ class BaseRobot(QObject):
 
     y = property(get_y, set_y)
 
+
 class ChaserRobot(BaseRobot):
 
     scoreSignal = pyqtSignal(int)
@@ -411,7 +411,6 @@ class TestRobot(BaseRobot):
 
     def __init__(self, id, x, y, controllerClass):
         super().__init__(id, x, y, 30, 200, 500, 30, 0, "textures/robot_red.png")
-
 
         self.controller = controllerClass(id)
         if id == 1:

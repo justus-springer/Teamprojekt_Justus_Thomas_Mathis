@@ -11,7 +11,7 @@ DAEMON_SLEEP = 50
 
 class Controller(QThread):
 
-    # This will be emittet whenevery the controller wants the robot to do a full stop
+    # This will be emittet whenever the controller wants the robot to do a full stop
     fullStopSignal = pyqtSignal()
     fullStopRotationSignal = pyqtSignal()
 
@@ -43,6 +43,7 @@ class Controller(QThread):
     def fetchValues(self):
         return self.a, self.a_alpha
 
+    #
     def aimAt(self, target_x, target_y):
 
         delta_x = target_x - self.x
@@ -99,7 +100,6 @@ class Controller(QThread):
                 self.a = - self.a_max
             else:
                 self.a = + self.a_max
-
 
     def moveInDirection(self, direction, speed=1000):
         self.moveAtSpeed(speed)
@@ -158,6 +158,7 @@ class Controller(QThread):
         self.wallsInView = wallsInView
 
 
+# Implements "WASD"-controls
 class PlayerController(Controller):
 
     def __init__(self, robotId):
@@ -165,7 +166,6 @@ class PlayerController(Controller):
         self.target_x = 500
         self.target_y = 500
         self.keysPressed = []
-
 
     def run(self):
 
@@ -194,11 +194,11 @@ class PlayerController(Controller):
             self.msleep(DAEMON_SLEEP)
 
     ### Slots
-
     def keysPressedSlot(self, keysPressed):
         self.keysPressed = keysPressed
 
 
+# Implements "IJKL"-controls
 class PlayerController2(Controller):
 
     def __init__(self, robotId):
@@ -210,8 +210,6 @@ class PlayerController2(Controller):
     def run(self):
 
         while True:
-
-            print('wasd: ', self.v_alpha)
 
             if Qt.Key_I in self.keysPressed:
                 self.moveAtSpeed(self.v_max)
@@ -236,7 +234,6 @@ class PlayerController2(Controller):
             self.msleep(DAEMON_SLEEP)
 
     ### Slots
-
     def keysPressedSlot(self, keysPressed):
         self.keysPressed = keysPressed
 
@@ -289,15 +286,17 @@ class ChaseController(Controller):
                 if self.readyToFire:
                     self.shootSignal.emit()
 
-
             self.msleep(DAEMON_SLEEP)
 
 
+# Lets the robot move to the target´s last known position
 class ChaseDirectlyController(ChaseController):
 
     def computeAim(self):
         return self.lastSighting['pos']
 
+
+# Predicts the target´s next position and lets the robot move there
 class ChasePredictController(ChaseController):
 
     def computeAim(self):
@@ -312,6 +311,8 @@ class ChasePredictController(ChaseController):
         futurePosEstimate = self.lastSighting['pos'] + 1 * speed * direction
         return futurePosEstimate
 
+
+# Lets the robot move to a position between the middle of the map and the target´s last known Position
 class ChaseGuardController(ChaseController):
 
     def computeAim(self):
@@ -324,20 +325,21 @@ class ChaseGuardController(ChaseController):
             return self.lastSighting['pos']
 
 
+# Calculates vectors opposing chasers and walls, weights them by distance.
+# Lets the robot move in direction of the summed vectors
 class RunController(Controller):
 
     def __init__(self, robotId, targetIds):
         super().__init__(robotId)
 
         self.targetIds = targetIds
-        self.aim_direction = QVector2D(1,0)
+        self.aim_direction = QVector2D(1, 0)
 
     def run(self):
 
         while True:
 
             if self.robotsInView != {}:
-
                 vecs = []
                 myPosition = QVector2D(self.x, self.y)
 
@@ -349,6 +351,7 @@ class RunController(Controller):
 
                 wall_vecs = []
                 distances = []
+
                 for rect in self.wallsInView:
 
                     rect_center = QVector2D(rect.center().x(), rect.center().y())
@@ -371,15 +374,14 @@ class RunController(Controller):
                 self.aim_direction = sumvectors(vecs).normalized()
                 self.moveInDirection(self.aim_direction)
 
-
             self.msleep(DAEMON_SLEEP)
+
 
 class XboxController(Controller):
     def __init__(self, robotId):
         super().__init__(robotId)
         self.target_x = 0
         self.target_y = 0
-
 
     def run(self):
 

@@ -32,7 +32,6 @@ class Gun(QObject):
         self.bullets = []
         self.reloadDisplay = ReloadBar(timeToReload, self.owner.r * 2)
 
-
     def update(self, deltaTime, levelMatrix, robotsDict):
         self.pos = self.owner.pos
 
@@ -60,6 +59,7 @@ class Gun(QObject):
     def resetTimer(self):
         self.reloadTimer = self.timeToReload
 
+
 class Handgun(Gun):
 
     def __init__(self, owner, baseSpeed, timeToReload, damage):
@@ -80,7 +80,7 @@ class Handgun(Gun):
                 continue
 
             robot = bullet.collidesWithRobots(robotsDict)
-            if robot != None:
+            if robot is not None:
                 self.hitSignal.emit(robot.id, self.damage)
                 self.bullets.remove(bullet)
                 del bullet
@@ -92,6 +92,7 @@ class Handgun(Gun):
             self.bullets.append(bullet)
             self.resetTimer()
             self.soundEffect.play()
+
 
 class Shotgun(Gun):
 
@@ -115,7 +116,7 @@ class Shotgun(Gun):
                 continue
 
             robot = bullet.collidesWithRobots(robotsDict)
-            if robot != None:
+            if robot is not None:
                 self.hitSignal.emit(robot.id, self.damage)
                 self.bullets.remove(bullet)
                 del bullet
@@ -156,7 +157,6 @@ class GrenadeLauncher(Gun):
     def update(self, deltaTime, levelMatrix, robotsDict):
         super().update(deltaTime, levelMatrix, robotsDict)
 
-
         for bullet in self.bullets:
             bullet.update(deltaTime, levelMatrix, robotsDict)
             if bullet.isTooOld() or bullet.collidesWithWorld(levelMatrix):
@@ -166,7 +166,7 @@ class GrenadeLauncher(Gun):
                 continue
 
             robot = bullet.collidesWithRobots(robotsDict)
-            if robot != None:
+            if robot is not None:
                 self.explode()
                 self.hitSignal.emit(robot.id, self.damage)
                 self.bullets.remove(bullet)
@@ -181,7 +181,7 @@ class GrenadeLauncher(Gun):
                 continue
 
             robot = bullet.collidesWithRobots(robotsDict)
-            if robot != None and robot.id != self.owner.id:
+            if robot is not None and robot.id != self.owner.id:
                 self.hitSignal.emit(robot.id, self.damage)
                 self.explosionBullets.remove(bullet)
                 del bullet
@@ -206,13 +206,13 @@ class GrenadeLauncher(Gun):
         MAX_SCATTER_ANGLE = 360
         MAX_SCATTER_SPEED = 20
         BULLET_SPEED = 300
-        BULLET_MAX_AGE = 0.5
+        #BULLET_MAX_AGE = 0.5
 
         for i in range(self.bulletsPerShot):
              scatteredAngle = random.uniform(-MAX_SCATTER_ANGLE, MAX_SCATTER_ANGLE)
              scatteredDirection = angleToVector(scatteredAngle)
              scatteredSpeed = BULLET_SPEED + random.uniform(-MAX_SCATTER_SPEED, MAX_SCATTER_SPEED)
-             newBullet = Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, BULLET_MAX_AGE)
+             #newBullet = Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, BULLET_MAX_AGE)
              self.explosionBullets.append(Bullet(self.owner, self.bullets[0].pos, scatteredDirection, scatteredSpeed, self.bulletRadius - 3, 0.5))
 
         self.soundEffect_explosion.play()
