@@ -375,14 +375,14 @@ class RobotGame(QWidget):
         self.keysPressed.append(event.key())
 
     def keyReleaseEvent(self, event):
-        self.keysPressed.remove(event.key())
+        if self.keysPressed != []:
+            self.keysPressed.remove(event.key())
 
     ### Slots
 
     # Will be called whenever a robot damages another robot. id is the id of the robots that has to be damaged
     def hitSignalSlot(self, id, damage):
         self.robots[id].dealDamage(damage)
-
 
         if self.robots[id].active and not self.robots[id].protected and self.robots[id].health == 0:
             self.robots[id].killRobot()
