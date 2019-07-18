@@ -87,10 +87,13 @@ class BaseRobot(QObject):
         self.respawnSound.setSource(QUrl.fromLocalFile("sounds/respawn.wav"))
         self.respawnSound.setVolume(0.1)
 
+    def __del__(self):
+        self.controller.terminate()
+        self.controller.wait()
+
     def equipWithGuns(self, *guns):
         self.guns = guns
         self.selected_gun = guns[0]
-
 
     def connectSignals(self):
         self.robotSpecsSignal.connect(self.controller.receiveRobotSpecs)
