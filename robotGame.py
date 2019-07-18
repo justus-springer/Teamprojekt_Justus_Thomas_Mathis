@@ -243,10 +243,9 @@ class RobotGame(QWidget):
             print("Please choose a map and a mode first, stupid!")
 
     def resetEverything(self):
-        for robot in self.robots.values():
-            del robot
-
+        del self.robots
         self.robots = {}
+        self.keysPressedSignal.disconnect()
         self.points = [0, 0]
 
     def paintEvent(self, event):
