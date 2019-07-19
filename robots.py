@@ -9,6 +9,7 @@ import robotGame, control
 from toolbox import minmax, circleCircleCollision, circleRectCollision, posToTileIndex
 from levelLoader import Tile
 from bar import HealthBar
+from resources import ResourceManager
 
 # Epsilon values represent the smallest reasonable value greater than 0
 # Any speed/distance below their epsilon value should be interpreted as practically 0
@@ -51,7 +52,7 @@ class BaseRobot(QObject):
         self.aov = aov
         self.r = r
         self.alpha = alpha # unit: degrees
-        self.texture = QPixmap(texturePath)
+        self.texture = ResourceManager.getTexture(texturePath)
 
         self.a = 0 # unit: pixels/second^2
         self.a_max = A_MAX # unit: pixels/second^2
@@ -75,17 +76,9 @@ class BaseRobot(QObject):
         self.timeToRespawn = 0
         self.protectionTime = 0
 
-        self.deathSound = QSoundEffect(self)
-        self.deathSound.setSource(QUrl.fromLocalFile("sounds/death.wav"))
-        self.deathSound.setVolume(0.1)
-
-        self.emptyGunSound = QSoundEffect(self)
-        self.emptyGunSound.setSource(QUrl.fromLocalFile("sounds/empty_gun.wav"))
-        self.emptyGunSound.setVolume(0.1)
-
-        self.respawnSound = QSoundEffect(self)
-        self.respawnSound.setSource(QUrl.fromLocalFile("sounds/respawn.wav"))
-        self.respawnSound.setVolume(0.1)
+        self.deathSound = ResourceManager.getSoundEffect("sounds/death.wav")
+        self.emptyGunSound = ResourceManager.getSoundEffect("sounds/empty_gun.wav")
+        self.respawnSound = ResourceManager.getSoundEffect("sounds/respawn.wav")
 
     def __del__(self):
         self.controller.terminate()
@@ -413,12 +406,11 @@ class RunnerRobot(BaseRobot):
 class TestRobot(BaseRobot):
 
     def __init__(self, id, x, y, controllerClass):
-        super().__init__(id, x, y, 30, 200, 500, 30, 0, "textures/robot_red.png")
-
-        self.controller = controllerClass(id)
         if id == 1:
             texturePath = "textures/robot_red.png"
-            self.texture = QPixmap(texturePath)
         if id == 2:
             texturePath = "textures/robot_blue.png"
-            self.texture = QPixmap(texturePath)
+
+        super().__init__(id, x, y, aov=30, v_max=200, maxHealth=500, r=30, alpha=0, texturePath=texturePath)
+
+        self.controller = controllerClass(id)

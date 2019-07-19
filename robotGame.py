@@ -40,13 +40,13 @@ class RobotGame(QWidget):
         super().__init__()
 
         # Load level data from file
-        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('levels/level1.txt')
+        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('levels/menu.txt')
         self.spawnPlayer1 = QVector2D(75, 500)
         self.spawnPlayer2 = QVector2D(925, 500)
 
         self.initUI()
         self.initTextures()
-        self.initRobots()
+        self.initRobots('menu')
         self.initTimer()
 
         self.keysPressed = []
@@ -68,10 +68,8 @@ class RobotGame(QWidget):
         self.setFocus()
 
         self.gameState = "menu"
-        self.gameMode = ""
+        self.chosenGameMode = ""
         self.chosenMap = ""
-
-        levels = ['levels/level1.txt', 'levels/level2.txt', 'levels/arena.txt', 'levels/arctic.txt', 'levels/volcano.txt']
 
         self.setGeometry(35, 35, 1200, 1000)
         self.setWindowTitle(WINDOW_TITLE)
@@ -97,8 +95,9 @@ class RobotGame(QWidget):
         chooseMapButton = QPushButton("Choose map", self)
         chooseMapButton.setGeometry(1025, 200, 150, 50)
         chooseMapMenu = QMenu(self)
-        for levelPath in levels:
-            chooseLevelAction = QAction(levelPath, self)
+        for levelName in ['Squares', 'Arena', 'Arctic', 'Volcano']:
+            chooseLevelAction = QAction(levelName, self)
+            levelPath = 'levels/' + levelName.lower() + '.txt'
             chooseLevelAction.triggered.connect((lambda x : (lambda : self.setMap(x)))(levelPath))
             chooseMapMenu.addAction(chooseLevelAction)
 
@@ -108,7 +107,7 @@ class RobotGame(QWidget):
         self.show()
 
     def setGameMode(self, x):
-        self.gameMode = x
+        self.chosenGameMode = x
 
     def setMap(self, x):
         self.chosenMap = x
@@ -124,21 +123,82 @@ class RobotGame(QWidget):
         self.previous = 0
         self.tickCounter = 0
 
-    def initRobots(self):
+    def initRobots(self, mode):
 
-        player = robots.TestRobot(1, 500, 500, control.PlayerController)
-        handgun = Handgun(player, 500, 0.1, 80)
-        shotgun = Shotgun(player, 200, 0.1, 10, 20)
-        grenade = GrenadeLauncher(player, 200, 0.1, 10, 100)
-        handgun.hitSignal.connect(self.hitSignalSlot)
-        shotgun.hitSignal.connect(self.hitSignalSlot)
-        grenade.hitSignal.connect(self.hitSignalSlot)
-        player.equipWithGuns(handgun, shotgun, grenade)
+        if mode == 'menu':
 
-        self.keysPressedSignal.connect(player.controller.keysPressedSlot)
+            player = robots.TestRobot(1, 500, 500, control.PlayerController)
+            handgun = Handgun(player, 500, 0.1, 80)
+            shotgun = Shotgun(player, 200, 0.1, 10, 20)
+            grenade = GrenadeLauncher(player, 200, 0.1, 10, 100)
+            handgun.hitSignal.connect(self.hitSignalSlot)
+            shotgun.hitSignal.connect(self.hitSignalSlot)
+            grenade.hitSignal.connect(self.hitSignalSlot)
+            player.equipWithGuns(handgun, shotgun, grenade)
 
-        self.robots = {1 : player}
+            self.keysPressedSignal.connect(player.controller.keysPressedSlot)
 
+            self.robots = {1 : player}
+
+        elif mode == 'single':
+
+            player = robots.TestRobot(1, 500, 500, control.PlayerController)
+
+            handgun = Handgun(player, 500, 1, 80)
+            shotgun = Shotgun(player, 200, 2, 10, 20)
+            grenade = GrenadeLauncher(player, 200, 3, 10, 100)
+
+            handgun.hitSignal.connect(self.hitSignalSlot)
+            shotgun.hitSignal.connect(self.hitSignalSlot)
+            grenade.hitSignal.connect(self.hitSignalSlot)
+
+            player.equipWithGuns(handgun, shotgun, grenade)
+            self.keysPressedSignal.connect(player.controller.keysPressedSlot)
+
+            chaser1 = robots.ChaserRobot(3, 200, 500, 1, 200, control.ChaseDirectlyController)
+            handgun1 = Handgun(chaser1, 500, 2, 80)
+            chaser1.equipWithGuns(handgun1)
+            handgun1.hitSignal.connect(self.hitSignalSlot)
+
+            chaser2 = robots.ChaserRobot(4, 500, 200, 1, 200, control.ChasePredictController)
+            handgun2 = Handgun(chaser2, 500, 2, 80)
+            chaser2.equipWithGuns(handgun2)
+            handgun2.hitSignal.connect(self.hitSignalSlot)
+
+            chaser3 = robots.ChaserRobot(5, 800, 500, 1, 200, control.ChaseGuardController)
+            handgun3 = Handgun(chaser3, 500, 2, 80)
+            chaser3.equipWithGuns(handgun3)
+            handgun3.hitSignal.connect(self.hitSignalSlot)
+
+            self.robots = {robot.id: robot for robot in [player, chaser1, chaser2, chaser3]}
+
+        elif mode =='duel':
+
+            player = robots.TestRobot(1, self.spawnPlayer1.x(), self.spawnPlayer1.y(), control.PlayerController)
+            player2 = robots.TestRobot(2, self.spawnPlayer2.x(), self.spawnPlayer2.y(), control.XboxController)
+
+            handgun = Handgun(player, 500, 1, 80)
+            shotgun = Shotgun(player, 200, 2, 10, 20)
+            grenade = GrenadeLauncher(player, 200, 3, 10, 100)
+            handgun_player_2 = Handgun(player2, 500, 1, 80)
+            shotgun_player_2 = Shotgun(player2, 200, 2, 10, 20)
+            grenade_player_2 = GrenadeLauncher(player2, 200, 3, 10, 100)
+
+            handgun.hitSignal.connect(self.hitSignalSlot)
+            shotgun.hitSignal.connect(self.hitSignalSlot)
+            grenade.hitSignal.connect(self.hitSignalSlot)
+            handgun_player_2.hitSignal.connect(self.hitSignalSlot)
+            shotgun_player_2.hitSignal.connect(self.hitSignalSlot)
+            grenade_player_2.hitSignal.connect(self.hitSignalSlot)
+
+            player.equipWithGuns(handgun, shotgun, grenade)
+            player2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
+
+            self.keysPressedSignal.connect(player.controller.keysPressedSlot)
+
+            self.robots = {robot.id : robot for robot in [player, player2]}
+
+        # Connect everything and start the controller threads
         for robot in self.robots.values():
 
             robot.connectSignals()
@@ -151,93 +211,12 @@ class RobotGame(QWidget):
 
     def startGame(self):
         self.setFocus()
-        if self.chosenMap != "" and self.gameMode != "":
-            if self.gameMode == 'single':
-                self.gameState = 'single'
+        if self.chosenMap != "" and self.chosenGameMode != "":
 
-                self.resetEverything()
-
-                player = robots.TestRobot(1, 500, 500, control.PlayerController)
-
-                handgun = Handgun(player, 500, 1, 80)
-                shotgun = Shotgun(player, 200, 2, 10, 20)
-                grenade = GrenadeLauncher(player, 200, 3, 10, 100)
-
-                handgun.hitSignal.connect(self.hitSignalSlot)
-                shotgun.hitSignal.connect(self.hitSignalSlot)
-                grenade.hitSignal.connect(self.hitSignalSlot)
-
-                player.equipWithGuns(handgun, shotgun, grenade)
-                self.keysPressedSignal.connect(player.controller.keysPressedSlot)
-
-                chaser1 = robots.ChaserRobot(3, 200, 500, 1, 200, control.ChaseDirectlyController)
-                handgun1 = Handgun(chaser1, 500, 2, 80)
-                chaser1.equipWithGuns(handgun1)
-                handgun1.hitSignal.connect(self.hitSignalSlot)
-
-                chaser2 = robots.ChaserRobot(4, 500, 200, 1, 200, control.ChasePredictController)
-                handgun2 = Handgun(chaser2, 500, 2, 80)
-                chaser2.equipWithGuns(handgun2)
-                handgun2.hitSignal.connect(self.hitSignalSlot)
-
-                chaser3 = robots.ChaserRobot(5, 800, 500, 1, 200, control.ChaseGuardController)
-                handgun3 = Handgun(chaser3, 500, 2, 80)
-                chaser3.equipWithGuns(handgun3)
-                handgun3.hitSignal.connect(self.hitSignalSlot)
-
-                self.robots = {robot.id: robot for robot in [player, chaser1, chaser2, chaser3]}
-
-                for robot in self.robots.values():
-
-                    robot.connectSignals()
-
-                    # Tell the controller the specs of the robot (a_max and a_alpha_max)
-                    robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max, robot.v_max, robot.v_alpha_max)
-
-                    # Start the controller threads
-                    robot.controller.start()
-
-                self.levelMatrix, self.obstacles = LevelLoader.loadLevel(self.chosenMap)
-
-            elif self.gameMode == 'duel':
-                self.gameState = 'duel'
-
-                self.resetEverything()
-
-                player = robots.TestRobot(1, self.spawnPlayer1.x(), self.spawnPlayer1.y(), control.PlayerController)
-                player2 = robots.TestRobot(2, self.spawnPlayer2.x(), self.spawnPlayer2.y(), control.XboxController)
-
-                handgun = Handgun(player, 500, 1, 80)
-                shotgun = Shotgun(player, 200, 2, 10, 20)
-                grenade = GrenadeLauncher(player, 200, 3, 10, 100)
-                handgun_player_2 = Handgun(player2, 500, 1, 80)
-                shotgun_player_2 = Shotgun(player2, 200, 2, 10, 20)
-                grenade_player_2 = GrenadeLauncher(player2, 200, 3, 10, 100)
-
-                handgun.hitSignal.connect(self.hitSignalSlot)
-                shotgun.hitSignal.connect(self.hitSignalSlot)
-                grenade.hitSignal.connect(self.hitSignalSlot)
-                handgun_player_2.hitSignal.connect(self.hitSignalSlot)
-                shotgun_player_2.hitSignal.connect(self.hitSignalSlot)
-                grenade_player_2.hitSignal.connect(self.hitSignalSlot)
-
-                player.equipWithGuns(handgun, shotgun, grenade)
-                player2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
-
-                self.keysPressedSignal.connect(player.controller.keysPressedSlot)
-
-                self.robots = {robot.id : robot for robot in [player, player2]}
-
-                for robot in self.robots.values():
-                    robot.connectSignals()
-
-                    # Tell the controller the specs of the robot (a_max and a_alpha_max)
-                    robot.robotSpecsSignal.emit(robot.a_max, robot.a_alpha_max, robot.v_max, robot.v_alpha_max)
-
-                    # Start the controller threads
-                    robot.controller.start()
-
-                self.levelMatrix, self.obstacles = LevelLoader.loadLevel(self.chosenMap)
+            self.gameState = self.chosenGameMode
+            self.resetEverything()
+            self.initRobots(self.chosenGameMode)
+            self.levelMatrix, self.obstacles = LevelLoader.loadLevel(self.chosenMap)
 
         else:
             print("Please choose a map and a mode first, stupid!")
@@ -263,7 +242,7 @@ class RobotGame(QWidget):
             for robot in self.robots.values():
                 robot.drawDebugLines(qp)
 
-        if self.gameMode == 'duel':
+        if self.gameState == 'duel':
             self.drawScore(event, qp)
 
         qp.end()
@@ -385,7 +364,7 @@ class RobotGame(QWidget):
 
         if self.robots[id].active and not self.robots[id].protected and self.robots[id].health == 0:
             self.robots[id].killRobot()
-            if self.gameMode == 'duel':
+            if self.gameState == 'duel':
                 self.points[id-1] = self.points[id-1] + 1
 
 
