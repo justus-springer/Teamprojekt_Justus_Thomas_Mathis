@@ -82,7 +82,6 @@ class BaseRobot(QObject):
     def terminateThread(self):
         self.controller.terminate()
         self.controller.wait()
-        print("hi")
 
     def equipWithGuns(self, *guns):
         self.guns = guns
