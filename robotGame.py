@@ -10,8 +10,6 @@ import control
 from arsenal import Handgun, Shotgun, GrenadeLauncher
 
 DEBUG_LINES = False
-GOD_MODE = False
-DUEL_MODE = False
 
 #Window options
 
@@ -96,21 +94,30 @@ class RobotGame(QWidget):
         chooseMapButton.setGeometry(1025, 200, 150, 50)
         chooseMapMenu = QMenu(self)
         for levelName in ['Squares', 'Arena', 'Arctic', 'Volcano']:
-            chooseLevelAction = QAction(levelName, self)
+            chooseMapAction = QAction(levelName, self)
             levelPath = 'levels/' + levelName.lower() + '.txt'
-            chooseLevelAction.triggered.connect((lambda x : (lambda : self.setMap(x)))(levelPath))
-            chooseMapMenu.addAction(chooseLevelAction)
+            chooseMapAction.triggered.connect((lambda x : (lambda : self.setMap(x)))(levelPath))
+            chooseMapMenu.addAction(chooseMapAction)
+
+        chooseCustomMapAction = QAction('Chustom Map', self)
+        chooseCustomMapAction.triggered.connect(self.chooseCustomMap)
+        chooseMapMenu.addAction(chooseCustomMapAction)
 
         chooseMapButton.setMenu(chooseMapMenu)
         chooseMapButton.show()
 
         self.show()
 
-    def setGameMode(self, x):
-        self.chosenGameMode = x
+    def setGameMode(self, mode):
+        self.chosenGameMode = mode
 
-    def setMap(self, x):
-        self.chosenMap = x
+    def setMap(self, mapFilePath):
+        self.chosenMap = mapFilePath
+
+    def chooseCustomMap(self):
+        url = QFileDialog.getOpenFileUrl(self, "Load custom map", QDir.currentPath(), "TXT files (*.txt)")
+        filePath = url[0].toLocalFile()
+        self.setMap(filePath)
 
     def initTimer(self):
 
