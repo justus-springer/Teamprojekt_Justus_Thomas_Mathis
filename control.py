@@ -5,7 +5,7 @@ import math
 
 import robots
 from toolbox import sumvectors, isNumberKey, keyToNumber
-from inputs import get_gamepad, NoDataError, UnpluggedError
+from inputs import UnpluggedError, devices
 
 DAEMON_SLEEP = 50
 
@@ -387,31 +387,33 @@ class XboxController(Controller):
 
         rotation = 0
         movespeed = 0
+        gamePad = devices.gamepads[0]
 
         while True:
 
             try:
-                events = get_gamepad(blocking = False)
+                gamePad._GamePad__check_state()
+                events = gamePad._do_iter()
+                if events:
 
-                for event in events:
-                    if event.code == 'ABS_X':
-                        if event.state > 28000:
-                            rotation = 1
-                        elif event.state < -28000:
-                            rotation = -1
-                        else:
-                            rotation = 0
-                    elif event.code == 'ABS_RZ':
-                        movespeed = event.state / 255
-                    elif event.code == 'ABS_Z':
-                        movespeed = -event.state / 255
-                    elif event.code == 'BTN_WEST' and event.state == 1:
-                        self.shootSignal.emit()
-                    elif event.code == 'ABS_HAT0X':
-                        self.nextGunSignal.emit(event.state)
+                    for event in events:
 
-            except NoDataError:
-                pass
+                        if event.code == 'ABS_X':
+                            if event.state > 28000:
+                                rotation = 1
+                            elif event.state < -28000:
+                                rotation = -1
+                            else:
+                                rotation = 0
+                        elif event.code == 'ABS_RZ':
+                            movespeed = event.state / 255
+                        elif event.code == 'ABS_Z':
+                            movespeed = -event.state / 255
+                        elif event.code == 'BTN_WEST' and event.state == 1:
+                            self.shootSignal.emit()
+                        elif event.code == 'ABS_HAT0X':
+                            self.nextGunSignal.emit(event.state)
+
             except UnpluggedError:
                 print('No XBox controller found or it was unplugged')
                 self.sleep(10000)

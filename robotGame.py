@@ -229,7 +229,8 @@ class RobotGame(QWidget):
             print("Please choose a map and a mode first, stupid!")
 
     def resetEverything(self):
-        del self.robots
+        for robot in self.robots.values():
+            robot.terminateThread()
         self.robots = {}
         self.keysPressedSignal.disconnect()
         self.points = [0, 0]

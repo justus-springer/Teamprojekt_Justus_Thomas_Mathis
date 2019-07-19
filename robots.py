@@ -77,12 +77,12 @@ class BaseRobot(QObject):
         self.protectionTime = 0
 
         self.deathSound = ResourceManager.getSoundEffect("sounds/death.wav")
-        self.emptyGunSound = ResourceManager.getSoundEffect("sounds/empty_gun.wav")
         self.respawnSound = ResourceManager.getSoundEffect("sounds/respawn.wav")
 
-    def __del__(self):
+    def terminateThread(self):
         self.controller.terminate()
         self.controller.wait()
+        print("hi")
 
     def equipWithGuns(self, *guns):
         self.guns = guns
@@ -265,9 +265,6 @@ class BaseRobot(QObject):
         if self.selected_gun is not None and self.active:
             if self.selected_gun.readyToFire():
                 self.selected_gun.fire(self.direction())
-
-            else:
-                self.emptyGunSound.play()
 
     def swithToGun(self, index):
         if index < len(self.guns):
