@@ -1,5 +1,6 @@
 from PyQt5.QtCore import QRectF
 from enum import Enum
+import re
 
 class Tile(Enum):
     grass = 0
@@ -23,32 +24,57 @@ class LevelLoader:
     LEVEL_SIZE = 100
     TILE_SIZE = 10
 
+    META_DATA_TAGS = ['single_spawn', 'duel_spawns', 'chaser_spawns']
+    META_DATA_DEFAULT_VALUES = {'single_spawn' : (50,50), 'duel_spawns' : [(10,50),(90,50)], 'chaser_spawns' : [(50,20),(20,50),(70,50)]}
+
     # Reads a txt file and creates an 2 dimensional array representing a level
     # A '0' represents free space, a '1' represents a wall
-    @staticmethod
-    def loadLevel(filePath):
+    @classmethod
+    def loadLevel(self, filePath):
         levelMatrix = []
         rects = []
+        metadata = {}
 
-        f = open(filePath, "r")
-        for i in range(LevelLoader.LEVEL_SIZE):
-            line = f.readline()
-            row = []
-            for c in line:
-                if c == '\n':
+        # construct regex pattern
+        pattern = '(?P<name>'
+        for tag in self.META_DATA_TAGS:
+            pattern += tag + '|'
+        pattern = pattern[:-1] # remove last '|'
+        pattern += ')'
+        pattern += ':\s*(?P<data>.*)'
+
+        with open(filePath, "r") as fileObject:
+            for line in fileObject:
+                if line.startswith('\n'):
                     continue
-                try:
-                    tileNum = int(c)
-                    row.append(Tile(tileNum))
-                except:
-                    raise Exception('Unknown symbol: "' + c + '" in level "' + filePath + '"')
-            levelMatrix.append(row)
 
-        for i in range(LevelLoader.LEVEL_SIZE):
-            for j in range(LevelLoader.LEVEL_SIZE):
+                match = re.match(pattern, line)
+                if match:
+                    # if it matches, the line contains metadata
+                    tag = match.group('name')
+                    if tag in self.META_DATA_TAGS:
+                        metadata[tag] = eval(match.group('data'))
+                    else:
+                        raise Exception('Unknown tag name: "' + tag + '" in level "' + filePath + '"')
+                else:
+                    # else it contains level data
+                    row = []
+                    for c in line:
+                        if c == '\n':
+                            continue
+                        try:
+                            tileNum = int(c)
+                            row.append(Tile(tileNum))
+                        except:
+                            raise Exception('Unknown symbol: "' + c + '" in level "' + filePath + '"')
+                    levelMatrix.append(row)
+
+        # construct obstacle list
+        for i in range(self.LEVEL_SIZE):
+            for j in range(self.LEVEL_SIZE):
                 if levelMatrix[i][j] == Tile.wall:
-                    new_rect = QRectF(j * LevelLoader.TILE_SIZE, i * LevelLoader.TILE_SIZE,
-                                    LevelLoader.TILE_SIZE, LevelLoader.TILE_SIZE)
+                    new_rect = QRectF(j * self.TILE_SIZE, i * self.TILE_SIZE,
+                                          self.TILE_SIZE, self.TILE_SIZE)
 
                     # Check if the rect would already be covered by one of our rects
                     if any(rect.contains(new_rect) for rect in rects):
@@ -59,7 +85,12 @@ class LevelLoader:
                     while all(all(x == Tile.wall for x in column[j:j+n]) for column in levelMatrix[i:i+n]):
                         n += 1
 
-                    rects.append(QRectF(j * LevelLoader.TILE_SIZE, i * LevelLoader.TILE_SIZE,
-                                        (n-1) * LevelLoader.TILE_SIZE, (n-1) * LevelLoader.TILE_SIZE))
+                    rects.append(QRectF(j * self.TILE_SIZE, i * self.TILE_SIZE,
+                                        (n-1) * self.TILE_SIZE, (n-1) * self.TILE_SIZE))
 
-        return levelMatrix, rects
+        # fill in missing metadata with default values
+        for tag in self.META_DATA_TAGS:
+            if tag not in metadata:
+                metadata[tag] = self.META_DATA_DEFAULT_VALUES[tag]
+
+        return levelMatrix, rects, metadata

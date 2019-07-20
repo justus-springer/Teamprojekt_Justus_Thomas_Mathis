@@ -38,13 +38,13 @@ class RobotGame(QWidget):
         super().__init__()
 
         # Load level data from file
-        self.levelMatrix, self.obstacles = LevelLoader.loadLevel('levels/menu.txt')
+        self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel('levels/menu.txt')
         self.spawnPlayer1 = QVector2D(75, 500)
         self.spawnPlayer2 = QVector2D(925, 500)
 
         self.initUI()
         self.initTextures()
-        self.initRobots('menu')
+        self.initRobots('menu', metadata)
         self.initTimer()
 
         self.keysPressed = []
@@ -130,11 +130,13 @@ class RobotGame(QWidget):
         self.previous = 0
         self.tickCounter = 0
 
-    def initRobots(self, mode):
+    def initRobots(self, mode, metadata):
 
         if mode == 'menu':
 
-            player = robots.TestRobot(1, 500, 500, control.PlayerController)
+            spawn_x, spawn_y = metadata['single_spawn']
+            player = robots.TestRobot(1, spawn_x * TILE_SIZE, spawn_y * TILE_SIZE, control.PlayerController)
+
             handgun = Handgun(player, 500, 0.1, 80)
             shotgun = Shotgun(player, 200, 0.1, 10, 20)
             grenade = GrenadeLauncher(player, 200, 0.1, 10, 100)
@@ -149,7 +151,8 @@ class RobotGame(QWidget):
 
         elif mode == 'single':
 
-            player = robots.TestRobot(1, 500, 500, control.PlayerController)
+            spawn_x, spawn_y = metadata['single_spawn']
+            player = robots.TestRobot(1, spawn_x * TILE_SIZE, spawn_y * TILE_SIZE, control.PlayerController)
 
             handgun = Handgun(player, 500, 1, 80)
             shotgun = Shotgun(player, 200, 2, 10, 20)
@@ -162,17 +165,21 @@ class RobotGame(QWidget):
             player.equipWithGuns(handgun, shotgun, grenade)
             self.keysPressedSignal.connect(player.controller.keysPressedSlot)
 
-            chaser1 = robots.ChaserRobot(3, 200, 500, 1, 200, control.ChaseDirectlyController)
+            chaser1_x, chaser1_y = metadata['chaser_spawns'][0]
+            chaser2_x, chaser2_y = metadata['chaser_spawns'][1]
+            chaser3_x, chaser3_y = metadata['chaser_spawns'][2]
+
+            chaser1 = robots.ChaserRobot(3, chaser1_x * TILE_SIZE, chaser1_y * TILE_SIZE, 1, 200, control.ChaseDirectlyController)
             handgun1 = Handgun(chaser1, 500, 2, 80)
             chaser1.equipWithGuns(handgun1)
             handgun1.hitSignal.connect(self.hitSignalSlot)
 
-            chaser2 = robots.ChaserRobot(4, 500, 200, 1, 200, control.ChasePredictController)
+            chaser2 = robots.ChaserRobot(4, chaser2_x * TILE_SIZE, chaser2_y * TILE_SIZE, 1, 200, control.ChasePredictController)
             handgun2 = Handgun(chaser2, 500, 2, 80)
             chaser2.equipWithGuns(handgun2)
             handgun2.hitSignal.connect(self.hitSignalSlot)
 
-            chaser3 = robots.ChaserRobot(5, 800, 500, 1, 200, control.ChaseGuardController)
+            chaser3 = robots.ChaserRobot(5, chaser3_x * TILE_SIZE, chaser3_y * TILE_SIZE, 1, 200, control.ChaseGuardController)
             handgun3 = Handgun(chaser3, 500, 2, 80)
             chaser3.equipWithGuns(handgun3)
             handgun3.hitSignal.connect(self.hitSignalSlot)
@@ -222,8 +229,8 @@ class RobotGame(QWidget):
 
             self.gameState = self.chosenGameMode
             self.resetEverything()
-            self.initRobots(self.chosenGameMode)
-            self.levelMatrix, self.obstacles = LevelLoader.loadLevel(self.chosenMap)
+            self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel(self.chosenMap)
+            self.initRobots(self.chosenGameMode, metadata)
 
         else:
             print("Please choose a map and a mode first, stupid!")
