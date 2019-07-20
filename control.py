@@ -5,7 +5,7 @@ import math
 
 import robots
 from toolbox import sumvectors, isNumberKey, keyToNumber
-from inputs import UnpluggedError, devices
+from inputs import UnpluggedError, devices, get_gamepad
 
 DAEMON_SLEEP = 50
 
@@ -387,12 +387,19 @@ class XboxController(Controller):
 
         rotation = 0
         movespeed = 0
+        try:
+            get_gamepad()
+        except UnpluggedError:
+            print('No XBox controller found or it was unplugged')
+            self.sleep(10000)
+
         gamePad = devices.gamepads[0]
 
         while True:
 
             try:
-                gamePad._GamePad__check_state()
+                if platform.system() == 'Windows':
+                    gamePad._GamePad__check_state()
                 events = gamePad._do_iter()
                 if events:
 
