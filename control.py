@@ -2,6 +2,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QDateTime
 from PyQt5.Qt import QVector2D, Qt
 import random
 import math
+import platform
 
 import robots
 from toolbox import sumvectors, isNumberKey, keyToNumber
