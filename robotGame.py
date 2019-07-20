@@ -39,8 +39,6 @@ class RobotGame(QWidget):
 
         # Load level data from file
         self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel('levels/menu.txt')
-        self.spawnPlayer1 = QVector2D(75, 500)
-        self.spawnPlayer2 = QVector2D(925, 500)
 
         self.initUI()
         self.initTextures()
@@ -188,8 +186,11 @@ class RobotGame(QWidget):
 
         elif mode =='duel':
 
-            player = robots.TestRobot(1, self.spawnPlayer1.x(), self.spawnPlayer1.y(), control.PlayerController)
-            player2 = robots.TestRobot(2, self.spawnPlayer2.x(), self.spawnPlayer2.y(), control.XboxController)
+            player1_x, player1_y = metadata['duel_spawns'][0]
+            player2_x, player2_y = metadata['duel_spawns'][1]
+
+            player = robots.TestRobot(1, player1_x * TILE_SIZE, player1_y * TILE_SIZE, control.PlayerController)
+            player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.XboxController)
 
             handgun = Handgun(player, 500, 1, 80)
             shotgun = Shotgun(player, 200, 2, 10, 20)
