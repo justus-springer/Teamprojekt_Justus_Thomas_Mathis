@@ -190,7 +190,14 @@ class PlayerController(Controller):
                 self.shootSignal.emit()
 
             for key in filter(isNumberKey, self.keysPressed):
-                self.switchToGunSignal.emit(keyToNumber(key) - 1)
+                # Player 2 can change weapons with 1,2,3
+                keyNumber = keyToNumber(key)
+                if keyNumber == 1:
+                    self.switchToGunSignal.emit(0)
+                elif keyNumber == 2:
+                    self.switchToGunSignal.emit(1)
+                elif keyNumber == 3:
+                    self.switchToGunSignal.emit(2)
 
             self.msleep(DAEMON_SLEEP)
 
@@ -230,7 +237,14 @@ class PlayerController2(Controller):
                 self.shootSignal.emit()
 
             for key in filter(isNumberKey, self.keysPressed):
-                self.switchToGunSignal.emit(keyToNumber(key) - 1)
+                keyNumber = keyToNumber(key)
+                # Player 2 can change weapons with 7,8,9
+                if keyNumber == 7:
+                    self.switchToGunSignal.emit(0)
+                elif keyNumber == 8:
+                    self.switchToGunSignal.emit(1)
+                elif keyNumber == 9:
+                    self.switchToGunSignal.emit(2)
 
             self.msleep(DAEMON_SLEEP)
 
