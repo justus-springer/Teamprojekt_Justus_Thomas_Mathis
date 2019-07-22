@@ -172,6 +172,8 @@ class PlayerController(Controller):
 
         while True:
 
+            print(self.keysPressed)
+
             if Qt.Key_W in self.keysPressed:
                 self.moveAtSpeed(self.v_max)
             elif Qt.Key_S in self.keysPressed:

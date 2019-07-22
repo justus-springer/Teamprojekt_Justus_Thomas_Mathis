@@ -79,6 +79,7 @@ class RobotGame(QWidget):
         chooseModeButton = QPushButton("Choose mode", self)
         chooseModeButton.setGeometry(1025, 150, 150, 50)
         chooseModeButton.show()
+        chooseModeButton.pressed.connect(self.clearKeys)
 
         chooseModeMenu = QMenu(self)
         singlePlayerAction = QAction('single player', self)
@@ -93,6 +94,7 @@ class RobotGame(QWidget):
 
         chooseMapButton = QPushButton("Choose map", self)
         chooseMapButton.setGeometry(1025, 200, 150, 50)
+        chooseMapButton.pressed.connect(self.clearKeys)
         chooseMapMenu = QMenu(self)
         for levelName in ['Squares', 'Arena', 'Arctic', 'Volcano']:
             chooseMapAction = QAction(levelName, self)
@@ -110,6 +112,7 @@ class RobotGame(QWidget):
         chooseControlsButton = QPushButton("Player 2 Controls", self)
         chooseControlsButton.setGeometry(1025, 250, 150, 50)
         chooseControlsButton.show()
+        chooseControlsButton.pressed.connect(self.clearKeys)
 
         chooseControlsMenu = QMenu(self)
 
@@ -125,8 +128,6 @@ class RobotGame(QWidget):
 
         self.show()
 
-
-
     def setGameMode(self, mode):
         self.chosenGameMode = mode
 
@@ -135,6 +136,7 @@ class RobotGame(QWidget):
 
     def setMap(self, mapFilePath):
         self.chosenMap = mapFilePath
+        self.levelMatrix, self.obstacles, _ = LevelLoader.loadLevel(mapFilePath)
 
     def chooseCustomMap(self):
         url = QFileDialog.getOpenFileUrl(self, "Load custom map", QDir.currentPath(), "TXT files (*.txt)")
@@ -255,6 +257,7 @@ class RobotGame(QWidget):
             robot.controller.start()
 
     def startGame(self):
+        self.clearKeys()
         self.setFocus()
 
         if self.chosenGameMode == "duel" and self.chosenPlayer2Controls == "":
@@ -275,6 +278,7 @@ class RobotGame(QWidget):
             robot.terminateThread()
         self.robots = {}
         self.keysPressedSignal.disconnect()
+        self.keysPressed = []
         self.points = [0, 0]
 
     def paintEvent(self, event):
@@ -399,11 +403,14 @@ class RobotGame(QWidget):
         robot.robotsInViewSignal.emit(robotsInView)
         robot.wallsInViewSignal.emit(list(wallsInView))
 
+    def clearKeys(self):
+        self.keysPressed = []
+
     def keyPressEvent(self, event):
         self.keysPressed.append(event.key())
 
     def keyReleaseEvent(self, event):
-        if self.keysPressed != []:
+        if event.key() in self.keysPressed:
             self.keysPressed.remove(event.key())
 
     ### Slots
