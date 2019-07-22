@@ -42,7 +42,7 @@ class RobotGame(QWidget):
 
         self.initUI()
         self.initTextures()
-        self.initRobots('menu', metadata)
+        self.initRobots('menu', metadata,"")
         self.initTimer()
 
         self.keysPressed = []
@@ -66,6 +66,7 @@ class RobotGame(QWidget):
         self.gameState = "menu"
         self.chosenGameMode = ""
         self.chosenMap = ""
+        self.chosenPlayer2Controls = ""
 
         self.setGeometry(35, 35, 1200, 1000)
         self.setWindowTitle(WINDOW_TITLE)
@@ -83,9 +84,11 @@ class RobotGame(QWidget):
         singlePlayerAction = QAction('single player', self)
         singlePlayerAction.triggered.connect(lambda : self.setGameMode('single'))
         chooseModeMenu.addAction(singlePlayerAction)
+
         duelPlayerAction = QAction('duel mode', self)
         duelPlayerAction.triggered.connect(lambda : self.setGameMode('duel'))
         chooseModeMenu.addAction(duelPlayerAction)
+
         chooseModeButton.setMenu(chooseModeMenu)
 
         chooseMapButton = QPushButton("Choose map", self)
@@ -97,17 +100,38 @@ class RobotGame(QWidget):
             chooseMapAction.triggered.connect((lambda x : (lambda : self.setMap(x)))(levelPath))
             chooseMapMenu.addAction(chooseMapAction)
 
-        chooseCustomMapAction = QAction('Chustom Map', self)
+        chooseCustomMapAction = QAction('Custom Map', self)
         chooseCustomMapAction.triggered.connect(self.chooseCustomMap)
         chooseMapMenu.addAction(chooseCustomMapAction)
 
         chooseMapButton.setMenu(chooseMapMenu)
         chooseMapButton.show()
 
+        chooseControlsButton = QPushButton("Player 2 Controls", self)
+        chooseControlsButton.setGeometry(1025, 250, 150, 50)
+        chooseControlsButton.show()
+
+        chooseControlsMenu = QMenu(self)
+
+        xboxControls = QAction('xbox', self)
+        xboxControls.triggered.connect(lambda: self.setPlayer2Controls('xbox'))
+        chooseControlsMenu.addAction(xboxControls)
+
+        keyboardControls = QAction('keyboard', self)
+        keyboardControls.triggered.connect(lambda: self.setPlayer2Controls('keyboard'))
+        chooseControlsMenu.addAction(keyboardControls)
+
+        chooseControlsButton.setMenu(chooseControlsMenu)
+
         self.show()
+
+
 
     def setGameMode(self, mode):
         self.chosenGameMode = mode
+
+    def setPlayer2Controls(self, controls):
+        self.chosenPlayer2Controls = controls
 
     def setMap(self, mapFilePath):
         self.chosenMap = mapFilePath
@@ -128,7 +152,7 @@ class RobotGame(QWidget):
         self.previous = 0
         self.tickCounter = 0
 
-    def initRobots(self, mode, metadata):
+    def initRobots(self, mode, metadata, player2controls):
 
         if mode == 'menu':
 
@@ -190,7 +214,13 @@ class RobotGame(QWidget):
             player2_x, player2_y = metadata['duel_spawns'][1]
 
             player = robots.TestRobot(1, player1_x * TILE_SIZE, player1_y * TILE_SIZE, control.PlayerController)
-            player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.XboxController)
+
+            if player2controls == 'xbox':
+
+                player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.XboxController)
+            else:
+                player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.PlayerController2)
+                self.keysPressedSignal.connect(player2.controller.keysPressedSlot)
 
             handgun = Handgun(player, 500, 1, 80)
             shotgun = Shotgun(player, 200, 2, 10, 20)
@@ -226,12 +256,16 @@ class RobotGame(QWidget):
 
     def startGame(self):
         self.setFocus()
-        if self.chosenMap != "" and self.chosenGameMode != "":
+
+        if self.chosenGameMode == "duel" and self.chosenPlayer2Controls == "":
+            print("Set controls for player 2 first, stupid")
+
+        elif self.chosenMap != "" and self.chosenGameMode != "" :
 
             self.gameState = self.chosenGameMode
             self.resetEverything()
             self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel(self.chosenMap)
-            self.initRobots(self.chosenGameMode, metadata)
+            self.initRobots(self.chosenGameMode, metadata, self.chosenPlayer2Controls)
 
         else:
             print("Please choose a map and a mode first, stupid!")
