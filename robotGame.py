@@ -130,13 +130,16 @@ class RobotGame(QWidget):
 
     def setGameMode(self, mode):
         self.chosenGameMode = mode
+        self.setFocus()
 
     def setPlayer2Controls(self, controls):
         self.chosenPlayer2Controls = controls
+        self.setFocus()
 
     def setMap(self, mapFilePath):
         self.chosenMap = mapFilePath
         self.levelMatrix, self.obstacles, _ = LevelLoader.loadLevel(mapFilePath)
+        self.setFocus()
 
     def chooseCustomMap(self):
         url = QFileDialog.getOpenFileUrl(self, "Load custom map", QDir.currentPath(), "TXT files (*.txt)")
