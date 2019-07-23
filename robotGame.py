@@ -126,6 +126,11 @@ class RobotGame(QWidget):
 
         chooseControlsButton.setMenu(chooseControlsMenu)
 
+        backToMenuButton = QPushButton('Back to menu', self)
+        backToMenuButton.clicked.connect(self.backToMenu)
+        backToMenuButton.setGeometry(1025, 900, 150, 50)
+        backToMenuButton.show()
+
         self.show()
 
     def setGameMode(self, mode):
@@ -138,13 +143,20 @@ class RobotGame(QWidget):
 
     def setMap(self, mapFilePath):
         self.chosenMap = mapFilePath
-        self.levelMatrix, self.obstacles, _ = LevelLoader.loadLevel(mapFilePath)
+        if self.gameState == 'menu':
+            self.levelMatrix, self.obstacles, _ = LevelLoader.loadLevel(mapFilePath)
         self.setFocus()
 
     def chooseCustomMap(self):
         url = QFileDialog.getOpenFileUrl(self, "Load custom map", QDir.currentPath(), "TXT files (*.txt)")
         filePath = url[0].toLocalFile()
         self.setMap(filePath)
+
+    def backToMenu(self):
+        self.clearKeys()
+        self.resetEverything()
+        self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel('levels/menu.txt')
+        self.initRobots('menu', metadata)
 
     def initTimer(self):
 
@@ -157,7 +169,7 @@ class RobotGame(QWidget):
         self.previous = 0
         self.tickCounter = 0
 
-    def initRobots(self, mode, metadata, player2controls):
+    def initRobots(self, mode, metadata, player2controls='keyboard'):
 
         if mode == 'menu':
 

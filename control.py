@@ -186,7 +186,7 @@ class PlayerController(Controller):
             else:
                 self.rotateAtSpeed(0)
 
-            if Qt.Key_Space in self.keysPressed:
+            if Qt.Key_E in self.keysPressed:
                 self.shootSignal.emit()
 
             for key in filter(isNumberKey, self.keysPressed):
