@@ -42,7 +42,7 @@ class RobotGame(QWidget):
 
         self.initUI()
         self.initTextures()
-        self.initRobots('menu', metadata)
+        self.initRobots('menu', metadata,"")
         self.initTimer()
 
         self.keysPressed = []
@@ -66,6 +66,7 @@ class RobotGame(QWidget):
         self.gameState = "menu"
         self.chosenGameMode = ""
         self.chosenMap = ""
+        self.chosenPlayer2Controls = ""
 
         self.setGeometry(35, 35, 1200, 1000)
         self.setWindowTitle(WINDOW_TITLE)
@@ -78,18 +79,22 @@ class RobotGame(QWidget):
         chooseModeButton = QPushButton("Choose mode", self)
         chooseModeButton.setGeometry(1025, 150, 150, 50)
         chooseModeButton.show()
+        chooseModeButton.pressed.connect(self.clearKeys)
 
         chooseModeMenu = QMenu(self)
         singlePlayerAction = QAction('single player', self)
         singlePlayerAction.triggered.connect(lambda : self.setGameMode('single'))
         chooseModeMenu.addAction(singlePlayerAction)
+
         duelPlayerAction = QAction('duel mode', self)
         duelPlayerAction.triggered.connect(lambda : self.setGameMode('duel'))
         chooseModeMenu.addAction(duelPlayerAction)
+
         chooseModeButton.setMenu(chooseModeMenu)
 
         chooseMapButton = QPushButton("Choose map", self)
         chooseMapButton.setGeometry(1025, 200, 150, 50)
+        chooseMapButton.pressed.connect(self.clearKeys)
         chooseMapMenu = QMenu(self)
         for levelName in ['Squares', 'Arena', 'Arctic', 'Volcano']:
             chooseMapAction = QAction(levelName, self)
@@ -97,25 +102,61 @@ class RobotGame(QWidget):
             chooseMapAction.triggered.connect((lambda x : (lambda : self.setMap(x)))(levelPath))
             chooseMapMenu.addAction(chooseMapAction)
 
-        chooseCustomMapAction = QAction('Chustom Map', self)
+        chooseCustomMapAction = QAction('Custom Map', self)
         chooseCustomMapAction.triggered.connect(self.chooseCustomMap)
         chooseMapMenu.addAction(chooseCustomMapAction)
 
         chooseMapButton.setMenu(chooseMapMenu)
         chooseMapButton.show()
 
+        chooseControlsButton = QPushButton("Player 2 Controls", self)
+        chooseControlsButton.setGeometry(1025, 250, 150, 50)
+        chooseControlsButton.show()
+        chooseControlsButton.pressed.connect(self.clearKeys)
+
+        chooseControlsMenu = QMenu(self)
+
+        xboxControls = QAction('xbox', self)
+        xboxControls.triggered.connect(lambda: self.setPlayer2Controls('xbox'))
+        chooseControlsMenu.addAction(xboxControls)
+
+        keyboardControls = QAction('keyboard', self)
+        keyboardControls.triggered.connect(lambda: self.setPlayer2Controls('keyboard'))
+        chooseControlsMenu.addAction(keyboardControls)
+
+        chooseControlsButton.setMenu(chooseControlsMenu)
+
+        backToMenuButton = QPushButton('Back to menu', self)
+        backToMenuButton.clicked.connect(self.backToMenu)
+        backToMenuButton.setGeometry(1025, 900, 150, 50)
+        backToMenuButton.show()
+
         self.show()
 
     def setGameMode(self, mode):
         self.chosenGameMode = mode
+        self.setFocus()
+
+    def setPlayer2Controls(self, controls):
+        self.chosenPlayer2Controls = controls
+        self.setFocus()
 
     def setMap(self, mapFilePath):
         self.chosenMap = mapFilePath
+        if self.gameState == 'menu':
+            self.levelMatrix, self.obstacles, _ = LevelLoader.loadLevel(mapFilePath)
+        self.setFocus()
 
     def chooseCustomMap(self):
         url = QFileDialog.getOpenFileUrl(self, "Load custom map", QDir.currentPath(), "TXT files (*.txt)")
         filePath = url[0].toLocalFile()
         self.setMap(filePath)
+
+    def backToMenu(self):
+        self.clearKeys()
+        self.resetEverything()
+        self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel('levels/menu.txt')
+        self.initRobots('menu', metadata)
 
     def initTimer(self):
 
@@ -128,7 +169,7 @@ class RobotGame(QWidget):
         self.previous = 0
         self.tickCounter = 0
 
-    def initRobots(self, mode, metadata):
+    def initRobots(self, mode, metadata, player2controls='keyboard'):
 
         if mode == 'menu':
 
@@ -190,7 +231,13 @@ class RobotGame(QWidget):
             player2_x, player2_y = metadata['duel_spawns'][1]
 
             player = robots.TestRobot(1, player1_x * TILE_SIZE, player1_y * TILE_SIZE, control.PlayerController)
-            player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.XboxController)
+
+            if player2controls == 'xbox':
+
+                player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.XboxController)
+            else:
+                player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.PlayerController2)
+                self.keysPressedSignal.connect(player2.controller.keysPressedSlot)
 
             handgun = Handgun(player, 500, 1, 80)
             shotgun = Shotgun(player, 200, 2, 10, 20)
@@ -225,13 +272,18 @@ class RobotGame(QWidget):
             robot.controller.start()
 
     def startGame(self):
+        self.clearKeys()
         self.setFocus()
-        if self.chosenMap != "" and self.chosenGameMode != "":
+
+        if self.chosenGameMode == "duel" and self.chosenPlayer2Controls == "":
+            print("Set controls for player 2 first, stupid")
+
+        elif self.chosenMap != "" and self.chosenGameMode != "" :
 
             self.gameState = self.chosenGameMode
             self.resetEverything()
             self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel(self.chosenMap)
-            self.initRobots(self.chosenGameMode, metadata)
+            self.initRobots(self.chosenGameMode, metadata, self.chosenPlayer2Controls)
 
         else:
             print("Please choose a map and a mode first, stupid!")
@@ -241,6 +293,7 @@ class RobotGame(QWidget):
             robot.terminateThread()
         self.robots = {}
         self.keysPressedSignal.disconnect()
+        self.keysPressed = []
         self.points = [0, 0]
 
     def paintEvent(self, event):
@@ -365,11 +418,14 @@ class RobotGame(QWidget):
         robot.robotsInViewSignal.emit(robotsInView)
         robot.wallsInViewSignal.emit(list(wallsInView))
 
+    def clearKeys(self):
+        self.keysPressed = []
+
     def keyPressEvent(self, event):
         self.keysPressed.append(event.key())
 
     def keyReleaseEvent(self, event):
-        if self.keysPressed != []:
+        if event.key() in self.keysPressed:
             self.keysPressed.remove(event.key())
 
     ### Slots
