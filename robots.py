@@ -6,9 +6,10 @@ import math
 import random
 
 import robotGame, control
-from toolbox import minmax, circleCircleCollision, circleRectCollision
+from toolbox import minmax, circleCircleCollision, circleRectCollision, posToTileIndex
 from levelLoader import Tile
 from bar import HealthBar
+from resources import ResourceManager
 
 # Epsilon values represent the smallest reasonable value greater than 0
 # Any speed/distance below their epsilon value should be interpreted as practically 0
@@ -51,7 +52,7 @@ class BaseRobot(QObject):
         self.aov = aov
         self.r = r
         self.alpha = alpha # unit: degrees
-        self.texture = QPixmap(texturePath)
+        self.texture = ResourceManager.getTexture(texturePath)
 
         self.a = 0 # unit: pixels/second^2
         self.a_max = A_MAX # unit: pixels/second^2
@@ -75,22 +76,16 @@ class BaseRobot(QObject):
         self.timeToRespawn = 0
         self.protectionTime = 0
 
-        self.deathSound = QSoundEffect(self)
-        self.deathSound.setSource(QUrl.fromLocalFile("sounds/death.wav"))
-        self.deathSound.setVolume(0.1)
+        self.deathSound = ResourceManager.getSoundEffect("sounds/death.wav")
+        self.respawnSound = ResourceManager.getSoundEffect("sounds/respawn.wav")
 
-        self.emptyGunSound = QSoundEffect(self)
-        self.emptyGunSound.setSource(QUrl.fromLocalFile("sounds/empty_gun.wav"))
-        self.emptyGunSound.setVolume(0.1)
-
-        self.respawnSound = QSoundEffect(self)
-        self.respawnSound.setSource(QUrl.fromLocalFile("sounds/respawn.wav"))
-        self.respawnSound.setVolume(0.1)
+    def terminateThread(self):
+        self.controller.terminate()
+        self.controller.wait()
 
     def equipWithGuns(self, *guns):
         self.guns = guns
         self.selected_gun = guns[0]
-
 
     def connectSignals(self):
         self.robotSpecsSignal.connect(self.controller.receiveRobotSpecs)
@@ -107,8 +102,10 @@ class BaseRobot(QObject):
     def draw(self, qp):
 
         qp.save()
+
         qp.translate(self.x, self.y)
         qp.rotate(self.alpha)
+        qp.setOpacity(1 - self.protectionTime / 3)
         source = QRectF(0, 0, 64, 64)
         target = QRectF(-self.r, -self.r, 2*self.r, 2*self.r)
         qp.drawPixmap(target, self.texture, source)
@@ -156,6 +153,7 @@ class BaseRobot(QObject):
             self.protectionTime -= deltaTime
             if self.protectionTime <= 0:
                 self.protected = False
+                self.protectionTime = 0
 
         if self.active:
             self.pos += self.v * deltaTime * self.direction()
@@ -180,7 +178,6 @@ class BaseRobot(QObject):
         color_g = int(255 * self.health / self.maxHealth)
         color_r = 255 - color_g
         self.healthBar.setColor(QColor(color_r, color_g, 0))
-
 
     def collideWithWalls(self, obstacles):
 
@@ -228,17 +225,20 @@ class BaseRobot(QObject):
     def collisionRadar(self, levelMatrix):
         #Calculate Limits
 
-        x_min = minmax(int((self.x - self.r - COLL_BUFFER) // 10), 0, len(levelMatrix))
-        x_max = minmax(int((self.x + self.r + COLL_BUFFER) // 10 + 1), 0, len(levelMatrix))
-        y_min = minmax(int((self.y - self.r - COLL_BUFFER) // 10), 0, len(levelMatrix))
-        y_max = minmax(int((self.y + self.r + COLL_BUFFER) // 10 + 1), 0, len(levelMatrix))
+        x_min = minmax(int((self.x - self.r - COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
+        x_max = minmax(int((self.x + self.r + COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
+        y_min = minmax(int((self.y - self.r - COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
+        y_max = minmax(int((self.y + self.r + COLL_BUFFER) // robotGame.TILE_SIZE), 0, len(levelMatrix) - 1)
 
         #Fill obstacle list
         obstacles = []
         for y in range(y_min, y_max):
             for x in range(x_min, x_max):
                 if not levelMatrix[y][x].walkable():
-                    obstacles.append(QRectF(x * 10, y * 10, 10, 10))
+                    obstacles.append(QRectF(x * robotGame.TILE_SIZE,
+                                            y * robotGame.TILE_SIZE,
+                                            robotGame.TILE_SIZE,
+                                            robotGame.TILE_SIZE))
 
         return obstacles
 
@@ -261,30 +261,27 @@ class BaseRobot(QObject):
             return False
 
     def shoot(self):
-        if self.selected_gun != None and self.active:
+        if self.selected_gun is not None and self.active:
             if self.selected_gun.readyToFire():
                 self.selected_gun.fire(self.direction())
 
-            else:
-                self.emptyGunSound.play()
-
     def swithToGun(self, index):
         if index < len(self.guns):
-            self.currentGunIndex =  index
+            self.currentGunIndex = index
             self.selected_gun = self.guns[index]
 
     def nextGun(self, i):
-        print('hello')
         self.currentGunIndex = (self.currentGunIndex + i) % len(self.guns)
         self.selected_gun = self.guns[self.currentGunIndex]
 
     def dealDamage(self, damage):
         if self.active and not self.protected:
             self.health = max(0, self.health - damage)
-            if self.health == 0:
-                self.active = False
-                self.timeToRespawn = 3 # 3 seconds until respawn
-                self.deathSound.play()
+
+    def killRobot(self):
+        self.active = False
+        self.timeToRespawn = 3  # 3 seconds until respawn
+        self.deathSound.play()
 
     def respawn(self):
         self.pos.setX(self.spawn.x())
@@ -304,7 +301,7 @@ class BaseRobot(QObject):
         return QRectF(self.x - self.r, self.y - self.r, 2*self.r, 2*self.r)
 
     def readyToFire(self):
-        if self.selected_gun == None:
+        if self.selected_gun is None:
             return False
         else:
             return self.selected_gun.readyToFire()
@@ -363,6 +360,7 @@ class BaseRobot(QObject):
 
     y = property(get_y, set_y)
 
+
 class ChaserRobot(BaseRobot):
 
     scoreSignal = pyqtSignal(int)
@@ -404,13 +402,11 @@ class RunnerRobot(BaseRobot):
 class TestRobot(BaseRobot):
 
     def __init__(self, id, x, y, controllerClass):
-        super().__init__(id, x, y, 30, 200, 500, 30, 0, "textures/robot_red.png")
-
-
-        self.controller = controllerClass(id)
         if id == 1:
             texturePath = "textures/robot_red.png"
-            self.texture = QPixmap(texturePath)
         if id == 2:
             texturePath = "textures/robot_blue.png"
-            self.texture = QPixmap(texturePath)
+
+        super().__init__(id, x, y, aov=30, v_max=200, maxHealth=500, r=30, alpha=0, texturePath=texturePath)
+
+        self.controller = controllerClass(id)

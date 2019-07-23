@@ -1,7 +1,8 @@
 import sys, math
-from PyQt5.QtWidgets import QWidget, QApplication, QLabel
-from PyQt5.QtGui import QPainter, QColor, QPixmap, QVector2D, QBrush, QFont, QGuiApplication
-from PyQt5.QtCore import Qt, QBasicTimer, QPointF, QElapsedTimer, pyqtSignal, QRectF, QDateTime, QObject
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+import random
 
 from levelLoader import LevelLoader, Tile
 import robots
@@ -9,8 +10,6 @@ import control
 from arsenal import Handgun, Shotgun, GrenadeLauncher
 
 DEBUG_LINES = False
-GOD_MODE = False
-DUEL_MODE = True
 
 #Window options
 
@@ -30,6 +29,7 @@ FPS = 30
 MILLISECONDS_PER_SECOND = 1000
 TICK_INTERVALL = int(MILLISECONDS_PER_SECOND / FPS)
 
+
 class RobotGame(QWidget):
 
     keysPressedSignal = pyqtSignal(list)
@@ -38,22 +38,22 @@ class RobotGame(QWidget):
         super().__init__()
 
         # Load level data from file
-        if DUEL_MODE:
-            self.levelMatrix, self.obstacles = LevelLoader.loadLevel('arena.txt')
-            self.spawnPlayer1 = QVector2D(50, 500)
-            self.spawnPlayer2 = QVector2D(950, 500)
-        else:
-            self.levelMatrix, self.obstacles = LevelLoader.loadLevel('level2.txt')
-            self.spawnPlayer1 = QVector2D(550, 550)
-            self.spawnPlayer2 = QVector2D(450, 450)
+        self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel('levels/menu.txt')
 
         self.initUI()
         self.initTextures()
-        self.initRobots()
+        self.initRobots('menu', metadata)
         self.initTimer()
 
         self.keysPressed = []
-        self.keysPressed2 = []
+
+        self.points = [0, 0]
+
+        self.bluePlayerColor = QColor(50, 120, 220, 255)
+        self.redPlayerColor = QColor(120, 30, 30, 255)
+        self.backgroundColor = QColor(80, 80, 80, 160)
+        self.innerBackgroundColor = QColor(20, 20, 20, 240)
+
 
     def initTextures(self):
 
@@ -61,9 +61,61 @@ class RobotGame(QWidget):
 
     def initUI(self):
 
-        self.setGeometry(START_WINDOW_X_POS, START_WINDOW_Y_POS, WINDOW_SIZE, WINDOW_SIZE)
+        self.setFocus()
+
+        self.gameState = "menu"
+        self.chosenGameMode = ""
+        self.chosenMap = ""
+
+        self.setGeometry(35, 35, 1200, 1000)
         self.setWindowTitle(WINDOW_TITLE)
+
+        startButton = QPushButton("Start game", self)
+        startButton.setGeometry(1025, 50, 150, 50)
+        startButton.show()
+        startButton.clicked.connect(self.startGame)
+
+        chooseModeButton = QPushButton("Choose mode", self)
+        chooseModeButton.setGeometry(1025, 150, 150, 50)
+        chooseModeButton.show()
+
+        chooseModeMenu = QMenu(self)
+        singlePlayerAction = QAction('single player', self)
+        singlePlayerAction.triggered.connect(lambda : self.setGameMode('single'))
+        chooseModeMenu.addAction(singlePlayerAction)
+        duelPlayerAction = QAction('duel mode', self)
+        duelPlayerAction.triggered.connect(lambda : self.setGameMode('duel'))
+        chooseModeMenu.addAction(duelPlayerAction)
+        chooseModeButton.setMenu(chooseModeMenu)
+
+        chooseMapButton = QPushButton("Choose map", self)
+        chooseMapButton.setGeometry(1025, 200, 150, 50)
+        chooseMapMenu = QMenu(self)
+        for levelName in ['Squares', 'Arena', 'Arctic', 'Volcano']:
+            chooseMapAction = QAction(levelName, self)
+            levelPath = 'levels/' + levelName.lower() + '.txt'
+            chooseMapAction.triggered.connect((lambda x : (lambda : self.setMap(x)))(levelPath))
+            chooseMapMenu.addAction(chooseMapAction)
+
+        chooseCustomMapAction = QAction('Chustom Map', self)
+        chooseCustomMapAction.triggered.connect(self.chooseCustomMap)
+        chooseMapMenu.addAction(chooseCustomMapAction)
+
+        chooseMapButton.setMenu(chooseMapMenu)
+        chooseMapButton.show()
+
         self.show()
+
+    def setGameMode(self, mode):
+        self.chosenGameMode = mode
+
+    def setMap(self, mapFilePath):
+        self.chosenMap = mapFilePath
+
+    def chooseCustomMap(self):
+        url = QFileDialog.getOpenFileUrl(self, "Load custom map", QDir.currentPath(), "TXT files (*.txt)")
+        filePath = url[0].toLocalFile()
+        self.setMap(filePath)
 
     def initTimer(self):
 
@@ -76,61 +128,92 @@ class RobotGame(QWidget):
         self.previous = 0
         self.tickCounter = 0
 
-    def initRobots(self):
+    def initRobots(self, mode, metadata):
 
-        self.robots = {}
+        if mode == 'menu':
 
-        player1 = robots.TestRobot(1, self.spawnPlayer1.x(), self.spawnPlayer1.y(), control.PlayerController)
-        player2 = robots.TestRobot(2, self.spawnPlayer2.x(), self.spawnPlayer2.y(), control.XboxController)
+            spawn_x, spawn_y = metadata['single_spawn']
+            player = robots.TestRobot(1, spawn_x * TILE_SIZE, spawn_y * TILE_SIZE, control.PlayerController)
 
-        if GOD_MODE:
-            handgun = Handgun(player1, 500, 0.1, 80)
-            shotgun = Shotgun(player1, 200, 0.1, 10, 20)
-            grenade = GrenadeLauncher(player1, 200, 0.1, 10, 100)
-            handgun_player_2 = Handgun(player2, 500, 0.1, 80)
-            shotgun_player_2 = Shotgun(player2, 200, 0.1, 10, 20)
-            grenade_player_2 = GrenadeLauncher(player2, 200, 0.1, 10, 100)
-        else:
-            handgun = Handgun(player1, 500, 1, 80)
-            shotgun = Shotgun(player1, 200, 2, 10, 20)
-            grenade = GrenadeLauncher(player1, 200, 3, 10, 100)
-            handgun_player_2 = Handgun(player2, 500, 1, 80)
-            shotgun_player_2 = Shotgun(player2, 200, 2, 10, 20)
-            grenade_player_2 = GrenadeLauncher(player2, 200, 3, 10, 100)
+            handgun = Handgun(player, 500, 0.1, 80)
+            shotgun = Shotgun(player, 200, 0.1, 10, 20)
+            grenade = GrenadeLauncher(player, 200, 0.1, 10, 100)
+            handgun.hitSignal.connect(self.hitSignalSlot)
+            shotgun.hitSignal.connect(self.hitSignalSlot)
+            grenade.hitSignal.connect(self.hitSignalSlot)
+            player.equipWithGuns(handgun, shotgun, grenade)
 
-        handgun.hitSignal.connect(self.hitSignalSlot)
-        shotgun.hitSignal.connect(self.hitSignalSlot)
-        grenade.hitSignal.connect(self.hitSignalSlot)
-        handgun_player_2.hitSignal.connect(self.hitSignalSlot)
-        shotgun_player_2.hitSignal.connect(self.hitSignalSlot)
-        grenade_player_2.hitSignal.connect(self.hitSignalSlot)
+            self.keysPressedSignal.connect(player.controller.keysPressedSlot)
 
-        player1.equipWithGuns(handgun, shotgun, grenade)
-        player2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
+            self.robots = {1 : player}
 
-        self.keysPressedSignal.connect(player1.controller.keysPressedSlot)
+        elif mode == 'single':
 
-        if DUEL_MODE:
-            self.robots = {robot.id : robot for robot in [player1, player2]}
-        else:
+            spawn_x, spawn_y = metadata['single_spawn']
+            player = robots.TestRobot(1, spawn_x * TILE_SIZE, spawn_y * TILE_SIZE, control.PlayerController)
 
-            chaser1 = robots.ChaserRobot(3, 200, 500, 1, 200, control.ChaseDirectlyController)
+            handgun = Handgun(player, 500, 1, 80)
+            shotgun = Shotgun(player, 200, 2, 10, 20)
+            grenade = GrenadeLauncher(player, 200, 3, 10, 100)
+
+            handgun.hitSignal.connect(self.hitSignalSlot)
+            shotgun.hitSignal.connect(self.hitSignalSlot)
+            grenade.hitSignal.connect(self.hitSignalSlot)
+
+            player.equipWithGuns(handgun, shotgun, grenade)
+            self.keysPressedSignal.connect(player.controller.keysPressedSlot)
+
+            chaser1_x, chaser1_y = metadata['chaser_spawns'][0]
+            chaser2_x, chaser2_y = metadata['chaser_spawns'][1]
+            chaser3_x, chaser3_y = metadata['chaser_spawns'][2]
+
+            chaser1 = robots.ChaserRobot(3, chaser1_x * TILE_SIZE, chaser1_y * TILE_SIZE, 1, 200, control.ChaseDirectlyController)
             handgun1 = Handgun(chaser1, 500, 2, 80)
             chaser1.equipWithGuns(handgun1)
             handgun1.hitSignal.connect(self.hitSignalSlot)
 
-            chaser2 = robots.ChaserRobot(4, 500, 200, 1, 200, control.ChasePredictController)
+            chaser2 = robots.ChaserRobot(4, chaser2_x * TILE_SIZE, chaser2_y * TILE_SIZE, 1, 200, control.ChasePredictController)
             handgun2 = Handgun(chaser2, 500, 2, 80)
             chaser2.equipWithGuns(handgun2)
             handgun2.hitSignal.connect(self.hitSignalSlot)
 
-            chaser3 = robots.ChaserRobot(5, 800, 500, 1, 200, control.ChaseGuardController)
+            chaser3 = robots.ChaserRobot(5, chaser3_x * TILE_SIZE, chaser3_y * TILE_SIZE, 1, 200, control.ChaseGuardController)
             handgun3 = Handgun(chaser3, 500, 2, 80)
             chaser3.equipWithGuns(handgun3)
             handgun3.hitSignal.connect(self.hitSignalSlot)
 
-            self.robots = {robot.id : robot for robot in [player1, player2, chaser1, chaser2, chaser3]}
+            self.robots = {robot.id: robot for robot in [player, chaser1, chaser2, chaser3]}
 
+        elif mode =='duel':
+
+            player1_x, player1_y = metadata['duel_spawns'][0]
+            player2_x, player2_y = metadata['duel_spawns'][1]
+
+            player = robots.TestRobot(1, player1_x * TILE_SIZE, player1_y * TILE_SIZE, control.PlayerController)
+            player2 = robots.TestRobot(2, player2_x * TILE_SIZE, player2_y * TILE_SIZE, control.XboxController)
+
+            handgun = Handgun(player, 500, 1, 80)
+            shotgun = Shotgun(player, 200, 2, 10, 20)
+            grenade = GrenadeLauncher(player, 200, 3, 10, 100)
+            handgun_player_2 = Handgun(player2, 500, 1, 80)
+            shotgun_player_2 = Shotgun(player2, 200, 2, 10, 20)
+            grenade_player_2 = GrenadeLauncher(player2, 200, 3, 10, 100)
+
+            handgun.hitSignal.connect(self.hitSignalSlot)
+            shotgun.hitSignal.connect(self.hitSignalSlot)
+            grenade.hitSignal.connect(self.hitSignalSlot)
+            handgun_player_2.hitSignal.connect(self.hitSignalSlot)
+            shotgun_player_2.hitSignal.connect(self.hitSignalSlot)
+            grenade_player_2.hitSignal.connect(self.hitSignalSlot)
+
+            player.equipWithGuns(handgun, shotgun, grenade)
+            player2.equipWithGuns(handgun_player_2, shotgun_player_2, grenade_player_2)
+
+            self.keysPressedSignal.connect(player.controller.keysPressedSlot)
+
+            self.robots = {robot.id : robot for robot in [player, player2]}
+
+        # Connect everything and start the controller threads
         for robot in self.robots.values():
 
             robot.connectSignals()
@@ -141,11 +224,32 @@ class RobotGame(QWidget):
             # Start the controller threads
             robot.controller.start()
 
+    def startGame(self):
+        self.setFocus()
+        if self.chosenMap != "" and self.chosenGameMode != "":
+
+            self.gameState = self.chosenGameMode
+            self.resetEverything()
+            self.levelMatrix, self.obstacles, metadata = LevelLoader.loadLevel(self.chosenMap)
+            self.initRobots(self.chosenGameMode, metadata)
+
+        else:
+            print("Please choose a map and a mode first, stupid!")
+
+    def resetEverything(self):
+        for robot in self.robots.values():
+            robot.terminateThread()
+        self.robots = {}
+        self.keysPressedSignal.disconnect()
+        self.points = [0, 0]
+
     def paintEvent(self, event):
 
         qp = QPainter()
         qp.begin(self)
+
         self.drawTiles(event, qp)
+
         for robot in self.robots.values():
             robot.draw(qp)
 
@@ -154,10 +258,42 @@ class RobotGame(QWidget):
             for robot in self.robots.values():
                 robot.drawDebugLines(qp)
 
+        if self.gameState == 'duel':
+            self.drawScore(event, qp)
+
         qp.end()
 
-    def drawTiles(self, event, qp):
+    def drawScore(self, event, qp):
 
+        qp.setFont(QFont('Decorative', 40))
+
+        qp.setPen(self.redPlayerColor)
+        qp.drawText(400, 135, str((self.points[1])))
+
+        qp.setPen(self.bluePlayerColor)
+        qp.drawText(580, 135, str((self.points[0])))
+
+        if self.points[0] >= 2 or self.points[1] >= 2:
+
+            qp.setBrush(self.backgroundColor)
+            qp.setPen(self.backgroundColor)
+            qp.drawRect(0, 0, 1000, 1000)
+
+            qp.setBrush(self.innerBackgroundColor)
+            qp.setPen(Qt.black)
+            qp.drawRect(0, 400, 1000, 200)
+
+            qp.setFont(QFont('Decorative', 120))
+            qp.setPen(Qt.black)
+
+            if self.points[0] >= 2:
+                qp.setPen(self.bluePlayerColor)
+                qp.drawText(160, 550, "blue wins!")
+            else:
+                qp.setPen(self.redPlayerColor)
+                qp.drawText(190, 550, "red wins!")
+
+    def drawTiles(self, event, qp):
         qp.setPen(Qt.NoPen)
         for row in range(NUMBER_OF_TILES):
             for column in range(NUMBER_OF_TILES):
@@ -196,7 +332,6 @@ class RobotGame(QWidget):
             # Update visuals
             self.update()
 
-
         self.previous = elapsed
 
 
@@ -234,13 +369,20 @@ class RobotGame(QWidget):
         self.keysPressed.append(event.key())
 
     def keyReleaseEvent(self, event):
-        self.keysPressed.remove(event.key())
+        if self.keysPressed != []:
+            self.keysPressed.remove(event.key())
 
     ### Slots
 
-    # Will be called whenever a robot kills another robot. id is the id of the robots that has to be killed
+    # Will be called whenever a robot damages another robot. id is the id of the robots that has to be damaged
     def hitSignalSlot(self, id, damage):
         self.robots[id].dealDamage(damage)
+
+        if self.robots[id].active and not self.robots[id].protected and self.robots[id].health == 0:
+            self.robots[id].killRobot()
+            if self.gameState == 'duel':
+                self.points[id-1] = self.points[id-1] + 1
+
 
 if __name__ == '__main__':
 
